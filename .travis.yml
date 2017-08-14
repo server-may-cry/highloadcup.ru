@@ -1,15 +1,6 @@
 sudo: required
-dist: trusty
-# until travis builtin docker version less 17.06
-#services:
-#  - docker
-before_install:
-  # docker
-  # until travis builtin docker version less 17.06
-  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-  - sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
-  - sudo apt-get update
-  - sudo apt-get -y install docker-ce
+services:
+  - docker
 script:
   - docker build -t $DOCKER_REPOSITORY .
   - docker login -u="$DOCKER_LOGIN" -p="$DOCKER_PASSWORD" stor.highloadcup.ru
