@@ -6,5 +6,7 @@ before_install:
   - sudo apt-get -y install docker-ce
 script:
   - docker build -t $DOCKER_REPOSITORY .
-  - docker login -u="$DOCKER_LOGIN" -p="$DOCKER_PASSWORD" stor.highloadcup.ru
-  - docker push $DOCKER_REPOSITORY
+  - if [ "$TRAVIS_BRANCH" == "master" ]; then
+    docker login -u="$DOCKER_LOGIN" -p="$DOCKER_PASSWORD" stor.highloadcup.ru;
+    docker push $DOCKER_REPOSITORY;
+    fi
