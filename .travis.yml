@@ -6,6 +6,5 @@ before_install:
   - sudo apt-get -y install docker-ce
 script:
   - docker build -t $DOCKER_REPOSITORY .
-after_success:
   - docker login -u="$DOCKER_LOGIN" -p="$DOCKER_PASSWORD" stor.highloadcup.ru
   - docker push $DOCKER_REPOSITORY
