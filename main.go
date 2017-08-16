@@ -175,11 +175,26 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if !isValidUser(&blank) {
+		blank.ID = obj.ID
+		if blank.Gender != "m" && blank.Gender != "f" && blank.Gender != "" {
 			http.Error(w, "", http.StatusBadRequest)
 			return
+		} else if blank.Gender == "" {
+			blank.Gender = obj.Gender
 		}
-		blank.ID = obj.ID
+		if blank.BirthDate == 0 {
+			blank.BirthDate = obj.BirthDate
+		}
+		if blank.Email == "" {
+			blank.Email = obj.Email
+		}
+		if blank.FirstName == "" {
+			blank.FirstName = obj.FirstName
+		}
+		if blank.LastName == "" {
+			blank.LastName = obj.LastName
+		}
+
 		users[id] = blank
 		w.Write(successUpdate)
 	})
@@ -200,11 +215,19 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if !isValidLocation(&blank) {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-		}
 		blank.ID = obj.ID
+		if blank.Place == "" {
+			blank.Place = obj.Place
+		}
+		if blank.Country == "" {
+			blank.Country = obj.Country
+		}
+		if blank.City == "" {
+			blank.City = obj.City
+		}
+		if blank.Distance == 0 {
+			blank.Distance = obj.Distance
+		}
 		locations[id] = blank
 		w.Write(successUpdate)
 	})
@@ -225,11 +248,19 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		if !isValidVisit(&blank) {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-		}
 		blank.ID = obj.ID
+		if blank.Location == 0 {
+			blank.Location = obj.Location
+		}
+		if blank.User == 0 {
+			blank.User = obj.User
+		}
+		if blank.Mark == 0 {
+			blank.Mark = obj.Mark
+		}
+		if blank.VisitedAt == 0 {
+			blank.VisitedAt = obj.VisitedAt
+		}
 		visits[id] = blank
 		w.Write(successUpdate)
 	})
