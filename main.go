@@ -15,7 +15,7 @@ var users map[int]User
 var locations map[int]Location
 var visits map[int]Visit
 
-var usersMaxID, locationsMaxID, visitsMaxID int
+var successUpdate = []byte("{}")
 
 type UsersFile struct {
 	Data []User `json:"users"`
@@ -27,7 +27,15 @@ type VisitsFile struct {
 	Data []Visit `json:"visits"`
 }
 
+type Avg struct {
+	Avg float32 `json:"avg"`
+}
+
 func init() {
+	users = make(map[int]User)
+	locations = make(map[int]Location)
+	visits = make(map[int]Visit)
+
 	r, err := zip.OpenReader("/tmp/data/data.zip")
 	if err != nil {
 		log.Fatal(err)
@@ -39,7 +47,6 @@ func init() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		defer rc.Close()
 		parts := strings.Split(f.Name, "_")
 		reader, err := f.Open()
 		if err != nil {
@@ -55,9 +62,6 @@ func init() {
 			}
 			for _, element := range data.Data {
 				users[element.ID] = element
-				if element.ID > usersMaxID {
-					usersMaxID = element.ID
-				}
 			}
 		case "locations":
 			data := LocationsFile{}
@@ -67,9 +71,6 @@ func init() {
 			}
 			for _, element := range data.Data {
 				locations[element.ID] = element
-				if element.ID > locationsMaxID {
-					locationsMaxID = element.ID
-				}
 			}
 		case "visits":
 			data := VisitsFile{}
@@ -79,12 +80,25 @@ func init() {
 			}
 			for _, element := range data.Data {
 				visits[element.ID] = element
-				if element.ID > visitsMaxID {
-					visitsMaxID = element.ID
-				}
 			}
 		}
+		rc.Close()
 	}
+/*
+	for _, visit := range visits {
+		u, ok := users[visit.User]
+		if !ok {
+			log.Fatal("not found user for visit")
+		}
+		u.Visits = append(u.Visits, &visit)
+
+		l, ok := locations[visit.Location]
+		if !ok {
+			log.Fatal("not found location for visit")
+		}
+		l.Visits = append(l.Visits, &visit)
+	}
+*/
 }
 
 func main() {
@@ -161,13 +175,13 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		blank.ID = obj.ID
-		users[id] = blank
-		err = json.NewEncoder(w).Encode(blank)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if !isValidUser(&blank) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		blank.ID = obj.ID
+		users[id] = blank
+		w.Write(successUpdate)
 	})
 	r.Post("/locations/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -186,13 +200,13 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		blank.ID = obj.ID
-		locations[id] = blank
-		err = json.NewEncoder(w).Encode(blank)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		if !isValidLocation(&blank) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		blank.ID = obj.ID
+		locations[id] = blank
+		w.Write(successUpdate)
 	})
 	r.Post("/visits/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -213,60 +227,85 @@ func main() {
 		}
 		blank.ID = obj.ID
 		visits[id] = blank
-		err = json.NewEncoder(w).Encode(blank)
+		w.Write(successUpdate)
+	})
+
+	// POST /<entity>/new
+	r.Post("/users/new", func(w http.ResponseWriter, r *http.Request) {
+		blank := User{}
+		err := json.NewDecoder(r.Body).Decode(&blank)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if !isValidUser(&blank) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		users[blank.ID] = blank
+		w.Write(successUpdate)
+	})
+	r.Post("/locations/new", func(w http.ResponseWriter, r *http.Request) {
+		blank := Location{}
+		err := json.NewDecoder(r.Body).Decode(&blank)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if !isValidLocation(&blank) {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		locations[blank.ID] = blank
+		w.Write(successUpdate)
+	})
+	r.Post("/visits/new", func(w http.ResponseWriter, r *http.Request) {
+		blank := Visit{}
+		err := json.NewDecoder(r.Body).Decode(&blank)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		visits[blank.ID] = blank
+		w.Write(successUpdate)
+	})
+
+	// GET /users/<id>/visits
+	r.Get("/users/{id}/visits", func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
+		if err != nil {
+			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
+			return
+		}
+		_, ok := users[id]
+		if !ok {
+			http.Error(w, "", http.StatusNotFound)
+			return
+		}
+		obj := VisitsFile{}
+		// TODO
+		err = json.NewEncoder(w).Encode(obj)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
 	})
 
-	// POST /<entity>/new
-	r.Post("/users/new", func(w http.ResponseWriter, r *http.Request) {
-		blank := User{}
-		usersMaxID++
-		newID := usersMaxID
-		err := json.NewDecoder(r.Body).Decode(&blank)
+	// GET /locations/<id>/avg
+	r.Get("/locations/{id}/avg", func(w http.ResponseWriter, r *http.Request) {
+		id, err := strconv.Atoi(chi.URLParam(r, "id"))
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
-		blank.ID = newID
-		users[newID] = blank
-		err = json.NewEncoder(w).Encode(blank)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+		_, ok := locations[id]
+		if !ok {
+			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-	})
-	r.Post("/locations/new", func(w http.ResponseWriter, r *http.Request) {
-		blank := Location{}
-		locationsMaxID++
-		newID := locationsMaxID
-		err := json.NewDecoder(r.Body).Decode(&blank)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		blank.ID = newID
-		locations[newID] = blank
-		err = json.NewEncoder(w).Encode(blank)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-	})
-	r.Post("/visits/new", func(w http.ResponseWriter, r *http.Request) {
-		blank := Visit{}
-		visitsMaxID++
-		newID := visitsMaxID
-		err := json.NewDecoder(r.Body).Decode(&blank)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-		blank.ID = newID
-		visits[newID] = blank
-		err = json.NewEncoder(w).Encode(blank)
+		obj := Avg{}
+		// TODO
+		err = json.NewEncoder(w).Encode(obj)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
@@ -274,4 +313,26 @@ func main() {
 	})
 
 	http.ListenAndServe(":80", r)
+}
+
+func isValidUser(u *User) bool {
+	if u.Gender != "m" && u.Gender != "f" {
+		return false
+	}
+
+	return true
+}
+
+func isValidLocation(l *Location) bool {
+	if l.City == "" {
+		return false
+	}
+	if l.Country == "" {
+		return false
+	}
+	if l.Place == "" {
+		return false
+	}
+
+	return true
 }
