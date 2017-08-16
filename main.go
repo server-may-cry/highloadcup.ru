@@ -7,13 +7,26 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/go-chi/chi"
 )
 
-var users map[int]User
-var locations map[int]Location
-var visits map[int]Visit
+type safeUsers struct {
+	v   map[int]User
+	mux sync.Mutex
+}
+type safeLocations struct {
+	v   map[int]Location
+	mux sync.Mutex
+}
+type safeVisits struct {
+	v   map[int]Visit
+	mux sync.Mutex
+}
+var users = safeUsers{v: make(map[int]User)}
+var locations = safeLocations{v: make(map[int]Location)}
+var visits = safeVisits{v: make(map[int]Visit)}
 
 var successUpdate = []byte("{}")
 
@@ -32,10 +45,6 @@ type Avg struct {
 }
 
 func init() {
-	users = make(map[int]User)
-	locations = make(map[int]Location)
-	visits = make(map[int]Visit)
-
 	r, err := zip.OpenReader("/tmp/data/data.zip")
 	if err != nil {
 		log.Fatal(err)
@@ -61,7 +70,7 @@ func init() {
 				log.Fatal(err)
 			}
 			for _, element := range data.Data {
-				users[element.ID] = element
+				users.v[element.ID] = element
 			}
 		case "locations":
 			data := LocationsFile{}
@@ -70,7 +79,7 @@ func init() {
 				log.Fatal(err)
 			}
 			for _, element := range data.Data {
-				locations[element.ID] = element
+				locations.v[element.ID] = element
 			}
 		case "visits":
 			data := VisitsFile{}
@@ -79,7 +88,7 @@ func init() {
 				log.Fatal(err)
 			}
 			for _, element := range data.Data {
-				visits[element.ID] = element
+				visits.v[element.ID] = element
 			}
 		}
 		rc.Close()
@@ -111,7 +120,7 @@ func main() {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
-		obj, ok := users[id]
+		obj, ok := users.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
@@ -128,7 +137,7 @@ func main() {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
-		obj, ok := locations[id]
+		obj, ok := locations.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
@@ -145,7 +154,7 @@ func main() {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
-		obj, ok := visits[id]
+		obj, ok := visits.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
@@ -165,7 +174,7 @@ func main() {
 			return
 		}
 		blank := User{}
-		obj, ok := users[id]
+		obj, ok := users.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
@@ -195,7 +204,9 @@ func main() {
 			blank.LastName = obj.LastName
 		}
 
-		users[id] = blank
+		users.mux.Lock()
+		users.v[id] = blank
+		users.mux.Unlock()
 		w.Write(successUpdate)
 	})
 	r.Post("/locations/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -205,7 +216,7 @@ func main() {
 			return
 		}
 		blank := Location{}
-		obj, ok := locations[id]
+		obj, ok := locations.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
@@ -228,7 +239,9 @@ func main() {
 		if blank.Distance == 0 {
 			blank.Distance = obj.Distance
 		}
-		locations[id] = blank
+		locations.mux.Lock()
+		locations.v[id] = blank
+		locations.mux.Unlock()
 		w.Write(successUpdate)
 	})
 	r.Post("/visits/{id}", func(w http.ResponseWriter, r *http.Request) {
@@ -238,7 +251,7 @@ func main() {
 			return
 		}
 		blank := Visit{}
-		obj, ok := visits[id]
+		obj, ok := visits.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
@@ -261,7 +274,9 @@ func main() {
 		if blank.VisitedAt == 0 {
 			blank.VisitedAt = obj.VisitedAt
 		}
-		visits[id] = blank
+		visits.mux.Lock()
+		visits.v[id] = blank
+		visits.mux.Unlock()
 		w.Write(successUpdate)
 	})
 
@@ -277,7 +292,9 @@ func main() {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		users[blank.ID] = blank
+		users.mux.Lock()
+		users.v[blank.ID] = blank
+		users.mux.Unlock()
 		w.Write(successUpdate)
 	})
 	r.Post("/locations/new", func(w http.ResponseWriter, r *http.Request) {
@@ -291,7 +308,9 @@ func main() {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		locations[blank.ID] = blank
+		locations.mux.Lock()
+		locations.v[blank.ID] = blank
+		locations.mux.Unlock()
 		w.Write(successUpdate)
 	})
 	r.Post("/visits/new", func(w http.ResponseWriter, r *http.Request) {
@@ -305,7 +324,9 @@ func main() {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		visits[blank.ID] = blank
+		visits.mux.Lock()
+		visits.v[blank.ID] = blank
+		visits.mux.Unlock()
 		w.Write(successUpdate)
 	})
 
@@ -316,7 +337,7 @@ func main() {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
-		_, ok := users[id]
+		_, ok := users.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
@@ -337,7 +358,7 @@ func main() {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
-		_, ok := locations[id]
+		_, ok := locations.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
