@@ -8,5 +8,5 @@ RUN apk update && apk upgrade && \
     CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo .
 
 FROM scratch
-COPY --from=build-env /go/src/github.com/server-may-cry/highloadcup.ru/highloadcup.ru /
+COPY --from=build-env /go/src/github.com/server-may-cry/highloadcup.ru/highloadcup.ru /server
 CMD ["/server"]
