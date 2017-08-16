@@ -15,16 +15,16 @@ var users map[int]User
 var locations map[int]Location
 var visits map[int]Visit
 
-var usersMaxID, locationsMaxId, visitsMaxId int
+var usersMaxID, locationsMaxID, visitsMaxID int
 
 type UsersFile struct {
-	Users []User `json:"users"`
+	Data []User `json:"users"`
 }
 type LocationsFile struct {
-	Locations []Location `json:"locations"`
+	Data []Location `json:"locations"`
 }
 type VisitsFile struct {
-	Visits []Visit `json:"visits"`
+	Data []Visit `json:"visits"`
 }
 
 func init() {
@@ -40,8 +40,12 @@ func init() {
 			log.Fatal(err)
 		}
 		defer rc.Close()
-		decoder := json.NewDecoder(f)
 		parts := strings.Split(f.Name, "_")
+		reader, err := f.Open()
+		if err != nil {
+			log.Fatal(err)
+		}
+		decoder := json.NewDecoder(reader)
 		switch parts[0] {
 		case "users":
 			data := UsersFile{}
@@ -49,7 +53,7 @@ func init() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			for _, element := range data {
+			for _, element := range data.Data {
 				users[data.ID] = data
 				if data.ID > usersMaxID {
 					usersMaxID = data.ID
@@ -61,7 +65,7 @@ func init() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			for _, element := range data {
+			for _, element := range data.Data {
 				locations[data.ID] = data
 				if data.ID > locationsMaxID {
 					locationsMaxID = data.ID
@@ -73,7 +77,7 @@ func init() {
 			if err != nil {
 				log.Fatal(err)
 			}
-			for _, element := range data {
+			for _, element := range data.Data {
 				visits[data.ID] = data
 				if data.ID > visitsMaxID {
 					visitsMaxID = data.ID
@@ -236,8 +240,8 @@ func main() {
 	})
 	r.Post("/locations/new", func(w http.ResponseWriter, r *http.Request) {
 		blank := Location{}
-		locationsMaxId++
-		newID := locationsMaxId
+		locationsMaxID++
+		newID := locationsMaxID
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -253,8 +257,8 @@ func main() {
 	})
 	r.Post("/visits/new", func(w http.ResponseWriter, r *http.Request) {
 		blank := Visit{}
-		visitsMaxId++
-		newID := visitsMaxId
+		visitsMaxID++
+		newID := visitsMaxID
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
