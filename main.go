@@ -54,9 +54,9 @@ func init() {
 				log.Fatal(err)
 			}
 			for _, element := range data.Data {
-				users[data.ID] = data
-				if data.ID > usersMaxID {
-					usersMaxID = data.ID
+				users[element.ID] = element
+				if element.ID > usersMaxID {
+					usersMaxID = element.ID
 				}
 			}
 		case "locations":
@@ -66,9 +66,9 @@ func init() {
 				log.Fatal(err)
 			}
 			for _, element := range data.Data {
-				locations[data.ID] = data
-				if data.ID > locationsMaxID {
-					locationsMaxID = data.ID
+				locations[element.ID] = element
+				if element.ID > locationsMaxID {
+					locationsMaxID = element.ID
 				}
 			}
 		case "visits":
@@ -78,9 +78,9 @@ func init() {
 				log.Fatal(err)
 			}
 			for _, element := range data.Data {
-				visits[data.ID] = data
-				if data.ID > visitsMaxID {
-					visitsMaxID = data.ID
+				visits[element.ID] = element
+				if element.ID > visitsMaxID {
+					visitsMaxID = element.ID
 				}
 			}
 		}
