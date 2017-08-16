@@ -1,7 +1,7 @@
 package main
 
 // {"distance": 9, "city": "Новоомск", "place": "Ресторан", "id": 1, "country": "Венесуэлла"}
-type Locaton struct {
+type Location struct {
 	ID       int    `json:"id"`
 	Distance int    `json:"distance"`
 	City     string `json:"city"`
