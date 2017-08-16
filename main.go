@@ -176,7 +176,7 @@ func main() {
 			return
 		}
 		if !isValidUser(&blank) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		blank.ID = obj.ID
@@ -201,7 +201,7 @@ func main() {
 			return
 		}
 		if !isValidLocation(&blank) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		blank.ID = obj.ID
@@ -225,6 +225,10 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
+		if !isValidVisit(&blank) {
+			http.Error(w, "", http.StatusBadRequest)
+			return
+		}
 		blank.ID = obj.ID
 		visits[id] = blank
 		w.Write(successUpdate)
@@ -239,7 +243,7 @@ func main() {
 			return
 		}
 		if !isValidUser(&blank) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		users[blank.ID] = blank
@@ -253,7 +257,7 @@ func main() {
 			return
 		}
 		if !isValidLocation(&blank) {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		locations[blank.ID] = blank
@@ -264,6 +268,10 @@ func main() {
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if !isValidVisit(&blank) {
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		visits[blank.ID] = blank
@@ -316,6 +324,9 @@ func main() {
 }
 
 func isValidUser(u *User) bool {
+	if u.ID == 0 {
+		return false
+	}
 	if u.Gender != "m" && u.Gender != "f" {
 		return false
 	}
@@ -324,6 +335,9 @@ func isValidUser(u *User) bool {
 }
 
 func isValidLocation(l *Location) bool {
+	if l.ID == 0 {
+		return false
+	}
 	if l.City == "" {
 		return false
 	}
@@ -334,5 +348,12 @@ func isValidLocation(l *Location) bool {
 		return false
 	}
 
+	return true
+}
+
+func isValidVisit(v *Visit) bool {
+	if v.ID == 0 {
+		return false
+	}
 	return true
 }
