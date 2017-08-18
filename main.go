@@ -70,7 +70,8 @@ func init() {
 				log.Fatal(err)
 			}
 			for _, element := range data.Data {
-				users.v[element.ID] = &element
+				cp := element
+				users.v[element.ID] = &cp
 			}
 		case "locations":
 			data := LocationsFile{}
@@ -79,7 +80,8 @@ func init() {
 				log.Fatal(err)
 			}
 			for _, element := range data.Data {
-				locations.v[element.ID] = &element
+				cp := element
+				locations.v[element.ID] = &cp
 			}
 		case "visits":
 			data := VisitsFile{}
@@ -88,7 +90,8 @@ func init() {
 				log.Fatal(err)
 			}
 			for _, element := range data.Data {
-				visits.v[element.ID] = &element
+				cp := element
+				visits.v[element.ID] = &cp
 			}
 		}
 		rc.Close()
@@ -185,9 +188,13 @@ func main() {
 		}
 		switch "null" {
 		case string(blank.BirthDate):
+			fallthrough
 		case string(blank.FirstName):
+			fallthrough
 		case string(blank.LastName):
+			fallthrough
 		case string(blank.Email):
+			fallthrough
 		case string(blank.Gender):
 			http.Error(w, "", http.StatusBadRequest)
 			return
@@ -264,8 +271,11 @@ func main() {
 		}
 		switch "null" {
 		case string(blank.Place):
+			fallthrough
 		case string(blank.Country):
+			fallthrough
 		case string(blank.City):
+			fallthrough
 		case string(blank.Distance):
 			http.Error(w, "", http.StatusBadRequest)
 			return
@@ -334,8 +344,11 @@ func main() {
 		}
 		switch "null" {
 		case string(blank.Location):
+			fallthrough
 		case string(blank.Mark):
+			fallthrough
 		case string(blank.VisitedAt):
+			fallthrough
 		case string(blank.User):
 			http.Error(w, "", http.StatusBadRequest)
 			return
@@ -446,6 +459,33 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
+		fromDate := r.URL.Query().Get("fromDate")
+		if fromDate != "" {
+			_, err := strconv.Atoi(fromDate)
+			if err != nil {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+		}
+		toDate := r.URL.Query().Get("toDate")
+		if fromDate != "" {
+			_, err := strconv.Atoi(toDate)
+			if err != nil {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+		}
+		//country := r.URL.Query().Get("country")
+		//if country != "" {
+		//}
+		toDistance := r.URL.Query().Get("toDistance")
+		if toDistance != "" {
+			_, err := strconv.Atoi(toDistance)
+			if err != nil {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+		}
 		obj := VisitsFile{}
 		// TODO
 		err = json.NewEncoder(w).Encode(obj)
@@ -465,6 +505,43 @@ func main() {
 		_, ok := locations.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
+			return
+		}
+		fromDate := r.URL.Query().Get("fromDate")
+		if fromDate != "" {
+			_, err := strconv.Atoi(fromDate)
+			if err != nil {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+		}
+		toDate := r.URL.Query().Get("toDate")
+		if toDate != "" {
+			_, err := strconv.Atoi(toDate)
+			if err != nil {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+		}
+		fromAge := r.URL.Query().Get("fromAge")
+		if fromAge != "" {
+			_, err := strconv.Atoi(fromAge)
+			if err != nil {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+		}
+		toAge := r.URL.Query().Get("toAge")
+		if toAge != "" {
+			_, err := strconv.Atoi(toAge)
+			if err != nil {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+		}
+		gender := r.URL.Query().Get("gender")
+		if gender != "" && gender != "f" && gender != "m" {
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		obj := Avg{}
@@ -545,15 +622,15 @@ func jsonRawToString(r *json.RawMessage) (string, error) {
 	if len(*r) == 0 {
 		return "" , nil
 	}
-	var result *string
+	var result string
 	err := json.Unmarshal(*r, &result)
-	return *result, err
+	return result, err
 }
 func jsonRawToInt(r *json.RawMessage) (int, error) {
 	if len(*r) == 0 {
 		return 0, nil
 	}
-	var result *int
+	var result int
 	err := json.Unmarshal(*r, &result)
-	return *result, err
+	return result, err
 }
