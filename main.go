@@ -8,8 +8,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-chi/chi"
+	"sort"
 )
 
 type safeUsers struct {
@@ -28,6 +30,10 @@ var users = safeUsers{v: make(map[int]*User)}
 var locations = safeLocations{v: make(map[int]*Location)}
 var visits = safeVisits{v: make(map[int]*Visit)}
 
+const date_format = "02.01.2006"
+var userMinBirthDateTime, userMaxBirthDateTime, visitMinDateTime, visitMaxDateTime time.Time
+var userMinBirthDate, userMaxBirthDate, visitMinDate, visitMaxDate int
+
 var successUpdate = []byte("{}")
 
 type UsersFile struct {
@@ -44,7 +50,49 @@ type Avg struct {
 	Avg float32 `json:"avg"`
 }
 
+type VisitInUser struct {
+	Mark      int    `json:"mark"`
+	VisitedAt int    `json:"visited_at"`
+	Place     string `json:"place"`
+}
+
+type visitsForSort []*VisitInUser
+func (slice visitsForSort) Len() int {
+	return len(slice)
+}
+func (slice visitsForSort) Less(i, j int) bool {
+	return slice[i].VisitedAt < slice[j].VisitedAt
+}
+func (slice visitsForSort) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
+}
+type VisitsResponse struct {
+	Data visitsForSort `json:"visits"`
+}
+
 func init() {
+	var err error
+	userMinBirthDateTime, err = time.Parse(date_format, "01.01.1930")
+	if err != nil {
+		log.Fatal(err)
+	}
+	userMinBirthDate = int(userMinBirthDateTime.Unix())
+	userMaxBirthDateTime, err = time.Parse(date_format, "01.01.1999")
+	if err != nil {
+		log.Fatal(err)
+	}
+	userMaxBirthDate = int(userMaxBirthDateTime.Unix())
+	visitMinDateTime, err = time.Parse(date_format, "01.01.2000")
+	if err != nil {
+		log.Fatal(err)
+	}
+	visitMinDate = int(visitMinDateTime.Unix())
+	visitMaxDateTime, err = time.Parse(date_format, "01.01.2015")
+	if err != nil {
+		log.Fatal(err)
+	}
+	visitMaxDate = int(visitMaxDateTime.Unix())
+
 	r, err := zip.OpenReader("/tmp/data/data.zip")
 	if err != nil {
 		log.Fatal(err)
@@ -454,40 +502,77 @@ func main() {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
-		_, ok := users.v[id]
+		u, ok := users.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
 		fromDate := r.URL.Query().Get("fromDate")
+		var fromDateInt int
 		if fromDate != "" {
-			_, err := strconv.Atoi(fromDate)
+			fromDateInt, err = strconv.Atoi(fromDate)
 			if err != nil {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+			if fromDateInt > visitMaxDate || fromDateInt < visitMinDate {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
 		}
 		toDate := r.URL.Query().Get("toDate")
+		var toDateInt int
 		if fromDate != "" {
-			_, err := strconv.Atoi(toDate)
+			toDateInt, err = strconv.Atoi(toDate)
 			if err != nil {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
+			if toDateInt > visitMaxDate || toDateInt < visitMinDate {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
 		}
-		//country := r.URL.Query().Get("country")
-		//if country != "" {
-		//}
+		country := r.URL.Query().Get("country")
+		if country != "" && len(country) > 50 {
+			http.Error(w, "", http.StatusBadRequest)
+			return
+		}
 		toDistance := r.URL.Query().Get("toDistance")
+		var toDistanceInt int
 		if toDistance != "" {
-			_, err := strconv.Atoi(toDistance)
+			toDistanceInt, err = strconv.Atoi(toDistance)
 			if err != nil {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
+			if toDistanceInt < 0 {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
 		}
-		obj := VisitsFile{}
-		// TODO
+		obj := VisitsResponse{}
+		for _, v := range u.Visits {
+			location, _ := locations.v[v.Location]
+			if country != "" && country != location.Country {
+				continue
+			}
+			if toDistance != "" && toDistanceInt > location.Distance {
+				continue
+			}
+			if fromDate != "" && fromDateInt > v.VisitedAt {
+				continue
+			}
+			if toDate != "" && toDateInt < v.VisitedAt {
+				continue
+			}
+			obj.Data = append(obj.Data, &VisitInUser{
+				Mark: v.Mark,
+				VisitedAt: v.VisitedAt,
+				Place: location.Place,
+			})
+		}
+		sort.Sort(obj.Data)
 		err = json.NewEncoder(w).Encode(obj)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -509,32 +594,48 @@ func main() {
 		}
 		fromDate := r.URL.Query().Get("fromDate")
 		if fromDate != "" {
-			_, err := strconv.Atoi(fromDate)
+			fromDateInt, err := strconv.Atoi(fromDate)
 			if err != nil {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+			if fromDateInt > visitMaxDate || fromDateInt < visitMinDate {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
 		}
 		toDate := r.URL.Query().Get("toDate")
 		if toDate != "" {
-			_, err := strconv.Atoi(toDate)
+			toDateInt, err := strconv.Atoi(toDate)
 			if err != nil {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+			if toDateInt > visitMaxDate || toDateInt < visitMinDate {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
 		}
 		fromAge := r.URL.Query().Get("fromAge")
 		if fromAge != "" {
-			_, err := strconv.Atoi(fromAge)
+			fromAgeInt, err := strconv.Atoi(fromAge)
 			if err != nil {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+			if fromAgeInt > userMaxBirthDate || fromAgeInt < userMinBirthDate {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
 		}
 		toAge := r.URL.Query().Get("toAge")
 		if toAge != "" {
-			_, err := strconv.Atoi(toAge)
+			toAgeInt, err := strconv.Atoi(toAge)
 			if err != nil {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+			if toAgeInt > userMaxBirthDate || toAgeInt < userMinBirthDate {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
@@ -572,7 +673,13 @@ func isValidUser(u *User) bool {
 	if u.Email == "" {
 		return false
 	}
+	if len(u.Email) > 50 {
+		return false
+	}
 	if u.BirthDate == 0 {
+		return false
+	}
+	if u.BirthDate < userMinBirthDate || u.BirthDate > userMaxBirthDate {
 		return false
 	}
 
@@ -586,13 +693,19 @@ func isValidLocation(l *Location) bool {
 	if l.City == "" {
 		return false
 	}
+	if len(l.City) > 50 {
+		return false
+	}
 	if l.Country == "" {
+		return false
+	}
+	if len(l.Country) > 50 {
 		return false
 	}
 	if l.Place == "" {
 		return false
 	}
-	if l.Distance == 0 {
+	if l.Distance <= 0 {
 		return false
 	}
 
@@ -606,13 +719,13 @@ func isValidVisit(v *Visit) bool {
 	if v.User == 0 {
 		return false
 	}
-	if v.Mark == 0 {
+	if v.Mark < 0 || v.Mark > 5 {
 		return false
 	}
 	if v.Location == 0 {
 		return false
 	}
-	if v.VisitedAt == 0 {
+	if v.VisitedAt < visitMinDate || v.VisitedAt > visitMaxDate {
 		return false
 	}
 	return true
