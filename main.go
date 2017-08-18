@@ -442,6 +442,7 @@ func main() {
 		w.Write(successUpdate)
 	})
 
+	// TODO add to cache
 	// POST /<entity>/new
 	r.Post("/users/new", func(w http.ResponseWriter, r *http.Request) {
 		blank := &User{}
@@ -587,14 +588,15 @@ func main() {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
-		_, ok := locations.v[id]
+		l, ok := locations.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
 		fromDate := r.URL.Query().Get("fromDate")
+		var fromDateInt int
 		if fromDate != "" {
-			fromDateInt, err := strconv.Atoi(fromDate)
+			fromDateInt, err = strconv.Atoi(fromDate)
 			if err != nil {
 				http.Error(w, "", http.StatusBadRequest)
 				return
@@ -605,8 +607,9 @@ func main() {
 			}
 		}
 		toDate := r.URL.Query().Get("toDate")
+		var toDateInt int
 		if toDate != "" {
-			toDateInt, err := strconv.Atoi(toDate)
+			toDateInt, err = strconv.Atoi(toDate)
 			if err != nil {
 				http.Error(w, "", http.StatusBadRequest)
 				return
@@ -617,8 +620,9 @@ func main() {
 			}
 		}
 		fromAge := r.URL.Query().Get("fromAge")
+		var fromAgeInt int
 		if fromAge != "" {
-			fromAgeInt, err := strconv.Atoi(fromAge)
+			fromAgeInt, err = strconv.Atoi(fromAge)
 			if err != nil {
 				http.Error(w, "", http.StatusBadRequest)
 				return
@@ -629,8 +633,9 @@ func main() {
 			}
 		}
 		toAge := r.URL.Query().Get("toAge")
+		var toAgeInt int
 		if toAge != "" {
-			toAgeInt, err := strconv.Atoi(toAge)
+			toAgeInt, err = strconv.Atoi(toAge)
 			if err != nil {
 				http.Error(w, "", http.StatusBadRequest)
 				return
@@ -646,7 +651,33 @@ func main() {
 			return
 		}
 		obj := Avg{}
-		// TODO
+		var marks []float32
+		for _, v := range l.Visits {
+			u, _ := users.v[v.User]
+			var userAge int
+			userAge = int(time.Now().Sub(time.Unix(0, 0)).Hours() / 24 / 365)
+			if fromDate != "" && v.VisitedAt < fromDateInt {
+				continue
+			}
+			if toDate != "" && v.VisitedAt > toDateInt {
+				continue
+			}
+			if fromAge != "" && fromAgeInt > userAge {
+				continue
+			}
+			if toAge != "" && toAgeInt < userAge {
+				continue
+			}
+			if gender != "" && u.Gender != gender {
+				continue
+			}
+			marks = append(marks, float32(v.Mark))
+		}
+		var total float32 = 0
+		for _, value:= range marks {
+			total += value
+		}
+		obj.Avg = total / float32(len(marks))
 		err = json.NewEncoder(w).Encode(obj)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
