@@ -33,8 +33,6 @@ var users = safeUsers{v: make(map[int]*User, defaultMapSize)}
 var locations = safeLocations{v: make(map[int]*Location, defaultMapSize)}
 var visits = safeVisits{v: make(map[int]*Visit, defaultMapSize)}
 
-//var ts int64
-
 var successUpdate = []byte("{}")
 
 type UsersFile struct {
@@ -62,8 +60,6 @@ type VisitsResponse struct {
 }
 
 func init() {
-//	ts = time.Now().Unix()
-
 	r, err := zip.OpenReader("/tmp/data/data.zip")
 	if err != nil {
 		log.Fatal(err)
@@ -249,7 +245,7 @@ func main() {
 			obj.Gender = gender
 		}
 		if birthDate != 0 {
-			obj.BirthDate = birthDate
+			obj.BirthDate = int64(birthDate)
 		}
 		if email != "" {
 			obj.Email = email
@@ -266,10 +262,10 @@ func main() {
 			return
 		}
 
+		w.Write(successUpdate)
 		users.mux.Lock()
 		users.v[id] = obj
 		users.mux.Unlock()
-		w.Write(successUpdate)
 	})
 	r.Post("/locations/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -339,10 +335,10 @@ func main() {
 			return
 		}
 
+		w.Write(successUpdate)
 		locations.mux.Lock()
 		locations.v[id] = obj
 		locations.mux.Unlock()
-		w.Write(successUpdate)
 	})
 	r.Post("/visits/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -403,14 +399,14 @@ func main() {
 		if mark != 0 {
 			obj.Mark = mark
 		}
-		if visitedAt == 0 {
+		if visitedAt != 0 {
 			obj.VisitedAt = visitedAt
 		}
 
+		w.Write(successUpdate)
 		visits.mux.Lock()
 		visits.v[id] = obj
 		visits.mux.Unlock()
-		w.Write(successUpdate)
 	})
 
 	// POST /<entity>/new
@@ -426,10 +422,11 @@ func main() {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
+
+		w.Write(successUpdate)
 		users.mux.Lock()
 		users.v[blank.ID] = blank
 		users.mux.Unlock()
-		w.Write(successUpdate)
 	})
 	r.Post("/locations/new", func(w http.ResponseWriter, r *http.Request) {
 		blank := &Location{}
@@ -443,10 +440,10 @@ func main() {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
+		w.Write(successUpdate)
 		locations.mux.Lock()
 		locations.v[blank.ID] = blank
 		locations.mux.Unlock()
-		w.Write(successUpdate)
 	})
 	r.Post("/visits/new", func(w http.ResponseWriter, r *http.Request) {
 		blank := &Visit{}
@@ -460,6 +457,7 @@ func main() {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
+		w.Write(successUpdate)
 		visits.mux.Lock()
 		visits.v[blank.ID] = blank
 		visits.mux.Unlock()
@@ -467,7 +465,6 @@ func main() {
 		u.Visits = append(u.Visits, blank)
 		l, _ := locations.v[blank.Location]
 		l.Visits = append(l.Visits, blank)
-		w.Write(successUpdate)
 	})
 
 	// GET /users/<id>/visits
@@ -607,7 +604,7 @@ func main() {
 		for _, v := range l.Visits {
 			u, _ := users.v[v.User]
 			var userAge int
-			userAge = int(time.Now().Sub(time.Unix(0, 0)).Hours() / 24 / 365)
+			userAge = int(time.Now().Sub(time.Unix(u.BirthDate, 0)).Hours() / 24 / 365)
 			if fromDate != "" && v.VisitedAt < fromDateInt {
 				continue
 			}

@@ -21,7 +21,7 @@ type User struct {
 	ID        int    `json:"id"`
 	FirstName string `json:"first_name"`
 	LastName  string `json:"last_name"`
-	BirthDate int    `json:"birth_date"`
+	BirthDate int64  `json:"birth_date"`
 	Gender    string `json:"gender"`
 	Email     string `json:"email"`
 
