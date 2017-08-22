@@ -33,10 +33,6 @@ var users = safeUsers{v: make(map[int]*User, defaultMapSize)}
 var locations = safeLocations{v: make(map[int]*Location, defaultMapSize)}
 var visits = safeVisits{v: make(map[int]*Visit, defaultMapSize)}
 
-const date_format = "02.01.2006"
-var userMinBirthDateTime, userMaxBirthDateTime, visitMinDateTime, visitMaxDateTime time.Time
-var userMinBirthDate, userMaxBirthDate, visitMinDate, visitMaxDate int
-
 //var ts int64
 
 var successUpdate = []byte("{}")
@@ -67,28 +63,6 @@ type VisitsResponse struct {
 
 func init() {
 //	ts = time.Now().Unix()
-
-	var err error
-	userMinBirthDateTime, err = time.Parse(date_format, "01.01.1930")
-	if err != nil {
-		log.Fatal(err)
-	}
-	userMinBirthDate = int(userMinBirthDateTime.Unix())
-	userMaxBirthDateTime, err = time.Parse(date_format, "01.01.1999")
-	if err != nil {
-		log.Fatal(err)
-	}
-	userMaxBirthDate = int(userMaxBirthDateTime.Unix())
-	visitMinDateTime, err = time.Parse(date_format, "01.01.2000")
-	if err != nil {
-		log.Fatal(err)
-	}
-	visitMinDate = int(visitMinDateTime.Unix())
-	visitMaxDateTime, err = time.Parse(date_format, "01.01.2015")
-	if err != nil {
-		log.Fatal(err)
-	}
-	visitMaxDate = int(visitMaxDateTime.Unix())
 
 	r, err := zip.OpenReader("/tmp/data/data.zip")
 	if err != nil {
@@ -260,7 +234,7 @@ func main() {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}
-		firstName, err := jsonRawToString(&blank.Email)
+		firstName, err := jsonRawToString(&blank.FirstName)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
@@ -516,20 +490,12 @@ func main() {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
-			if fromDateInt > visitMaxDate || fromDateInt < visitMinDate {
-				http.Error(w, "", http.StatusBadRequest)
-				return
-			}
 		}
 		toDate := r.URL.Query().Get("toDate")
 		var toDateInt int
-		if fromDate != "" {
+		if toDate != "" {
 			toDateInt, err = strconv.Atoi(toDate)
 			if err != nil {
-				http.Error(w, "", http.StatusBadRequest)
-				return
-			}
-			if toDateInt > visitMaxDate || toDateInt < visitMinDate {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
@@ -603,20 +569,12 @@ func main() {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
-			if fromDateInt > visitMaxDate || fromDateInt < visitMinDate {
-				http.Error(w, "", http.StatusBadRequest)
-				return
-			}
 		}
 		toDate := r.URL.Query().Get("toDate")
 		var toDateInt int
 		if toDate != "" {
 			toDateInt, err = strconv.Atoi(toDate)
 			if err != nil {
-				http.Error(w, "", http.StatusBadRequest)
-				return
-			}
-			if toDateInt > visitMaxDate || toDateInt < visitMinDate {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
@@ -629,20 +587,12 @@ func main() {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
-			if fromAgeInt > userMaxBirthDate || fromAgeInt < userMinBirthDate {
-				http.Error(w, "", http.StatusBadRequest)
-				return
-			}
 		}
 		toAge := r.URL.Query().Get("toAge")
 		var toAgeInt int
 		if toAge != "" {
 			toAgeInt, err = strconv.Atoi(toAge)
 			if err != nil {
-				http.Error(w, "", http.StatusBadRequest)
-				return
-			}
-			if toAgeInt > userMaxBirthDate || toAgeInt < userMinBirthDate {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
@@ -680,6 +630,9 @@ func main() {
 			total += value
 		}
 		obj.Avg = toFixed(total / float64(len(marks)), 5)
+		if obj.Avg < 0 {
+			obj.Avg = 0
+		}
 		err = json.NewEncoder(w).Encode(obj)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -710,9 +663,6 @@ func isValidUser(u *User) bool {
 		return false
 	}
 	if u.BirthDate == 0 {
-		return false
-	}
-	if u.BirthDate < userMinBirthDate || u.BirthDate > userMaxBirthDate {
 		return false
 	}
 
@@ -758,9 +708,7 @@ func isValidVisit(v *Visit) bool {
 	if v.Location == 0 {
 		return false
 	}
-	if v.VisitedAt < visitMinDate || v.VisitedAt > visitMaxDate {
-		return false
-	}
+
 	return true
 }
 
