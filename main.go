@@ -13,6 +13,7 @@ import (
 	"github.com/go-chi/chi"
 	"sort"
 	"fmt"
+	"math"
 )
 
 type safeUsers struct {
@@ -627,10 +628,15 @@ func main() {
 		for _, value:= range marks {
 			total += value
 		}
-		if len(marks) > 0 {
-			total /= float64(len(marks))
+		avg := toFixed(total / float64(len(marks)), 5)
+		if avg < 0 {
+			avg = 0
 		}
-		response := fmt.Sprintf(`{"avg":%s}`, strconv.FormatFloat(total, 'f', 5, 64))
+		response := fmt.Sprintf(`{"avg":%s}`, avg)
+		//if len(marks) > 0 {
+		//	total /= float64(len(marks))
+		//}
+		//response := fmt.Sprintf(`{"avg":%s}`, strconv.FormatFloat(total, 'f', 5, 64))
 		w.Write([]byte(response))
 	})
 
@@ -721,4 +727,13 @@ func jsonRawToInt(r *json.RawMessage) (int, error) {
 	var result int
 	err := json.Unmarshal(*r, &result)
 	return result, err
+}
+
+func round(num float64) int {
+	return int(num + math.Copysign(0.5, num))
+}
+
+func toFixed(num float64, precision int) float64 {
+	output := math.Pow(10, float64(precision))
+	return float64(round(num * output)) / output
 }
