@@ -144,7 +144,7 @@ func main() {
 		}
 		err = json.NewEncoder(w).Encode(obj)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
 	})
@@ -161,7 +161,7 @@ func main() {
 		}
 		err = json.NewEncoder(w).Encode(obj)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
 	})
@@ -178,7 +178,7 @@ func main() {
 		}
 		err = json.NewEncoder(w).Encode(obj)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
 	})
@@ -198,7 +198,7 @@ func main() {
 		}
 		err = json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		switch "null" {
@@ -217,27 +217,27 @@ func main() {
 
 		gender, err := jsonRawToString(&blank.Gender)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		birthDate, err := jsonRawToInt(&blank.BirthDate)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		email, err := jsonRawToString(&blank.Email)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		firstName, err := jsonRawToString(&blank.FirstName)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		lastName, err := jsonRawToString(&blank.LastName)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 
@@ -281,7 +281,7 @@ func main() {
 		}
 		err = json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		switch "null" {
@@ -298,22 +298,22 @@ func main() {
 
 		place, err := jsonRawToString(&blank.Place)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		country, err := jsonRawToString(&blank.Country)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		city, err := jsonRawToString(&blank.City)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		distance, err := jsonRawToInt(&blank.Distance)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 
@@ -354,7 +354,7 @@ func main() {
 		}
 		err = json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		switch "null" {
@@ -371,22 +371,22 @@ func main() {
 
 		location, err := jsonRawToInt(&blank.Location)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		user, err := jsonRawToInt(&blank.User)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		mark, err := jsonRawToInt(&blank.Mark)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 		visitedAt, err := jsonRawToInt(&blank.VisitedAt)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 
@@ -414,7 +414,7 @@ func main() {
 		blank := &User{}
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 
@@ -432,7 +432,7 @@ func main() {
 		blank := &Location{}
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 
@@ -449,7 +449,7 @@ func main() {
 		blank := &Visit{}
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
+			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 
@@ -541,7 +541,7 @@ func main() {
 		})
 		err = json.NewEncoder(w).Encode(obj)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
 	})
@@ -632,7 +632,7 @@ func main() {
 		}
 		err = json.NewEncoder(w).Encode(obj)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
 	})
