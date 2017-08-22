@@ -12,6 +12,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"sort"
+	"math"
 )
 
 type safeUsers struct {
@@ -26,13 +27,17 @@ type safeVisits struct {
 	v   map[int]*Visit
 	mux sync.Mutex
 }
-var users = safeUsers{v: make(map[int]*User)}
-var locations = safeLocations{v: make(map[int]*Location)}
-var visits = safeVisits{v: make(map[int]*Visit)}
+
+const defaultMapSize = 100000
+var users = safeUsers{v: make(map[int]*User, defaultMapSize)}
+var locations = safeLocations{v: make(map[int]*Location, defaultMapSize)}
+var visits = safeVisits{v: make(map[int]*Visit, defaultMapSize)}
 
 const date_format = "02.01.2006"
 var userMinBirthDateTime, userMaxBirthDateTime, visitMinDateTime, visitMaxDateTime time.Time
 var userMinBirthDate, userMaxBirthDate, visitMinDate, visitMaxDate int
+
+//var ts int64
 
 var successUpdate = []byte("{}")
 
@@ -47,7 +52,7 @@ type VisitsFile struct {
 }
 
 type Avg struct {
-	Avg float32 `json:"avg"`
+	Avg float64 `json:"avg"`
 }
 
 type VisitInUser struct {
@@ -56,21 +61,13 @@ type VisitInUser struct {
 	Place     string `json:"place"`
 }
 
-type visitsForSort []*VisitInUser
-func (slice visitsForSort) Len() int {
-	return len(slice)
-}
-func (slice visitsForSort) Less(i, j int) bool {
-	return slice[i].VisitedAt < slice[j].VisitedAt
-}
-func (slice visitsForSort) Swap(i, j int) {
-	slice[i], slice[j] = slice[j], slice[i]
-}
 type VisitsResponse struct {
-	Data visitsForSort `json:"visits"`
+	Data []*VisitInUser `json:"visits"`
 }
 
 func init() {
+//	ts = time.Now().Unix()
+
 	var err error
 	userMinBirthDateTime, err = time.Parse(date_format, "01.01.1930")
 	if err != nil {
@@ -442,7 +439,6 @@ func main() {
 		w.Write(successUpdate)
 	})
 
-	// TODO add to cache
 	// POST /<entity>/new
 	r.Post("/users/new", func(w http.ResponseWriter, r *http.Request) {
 		blank := &User{}
@@ -493,6 +489,10 @@ func main() {
 		visits.mux.Lock()
 		visits.v[blank.ID] = blank
 		visits.mux.Unlock()
+		u, _ := users.v[blank.User]
+		u.Visits = append(u.Visits, blank)
+		l, _ := locations.v[blank.Location]
+		l.Visits = append(l.Visits, blank)
 		w.Write(successUpdate)
 	})
 
@@ -552,7 +552,7 @@ func main() {
 				return
 			}
 		}
-		obj := VisitsResponse{}
+		obj := VisitsResponse{Data: make([]*VisitInUser, 0)}
 		for _, v := range u.Visits {
 			location, _ := locations.v[v.Location]
 			if country != "" && country != location.Country {
@@ -573,7 +573,9 @@ func main() {
 				Place: location.Place,
 			})
 		}
-		sort.Sort(obj.Data)
+		sort.Slice(obj.Data, func (i, j int) bool {
+			return obj.Data[i].VisitedAt < obj.Data[j].VisitedAt
+		})
 		err = json.NewEncoder(w).Encode(obj)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -651,7 +653,7 @@ func main() {
 			return
 		}
 		obj := Avg{}
-		var marks []float32
+		var marks []float64
 		for _, v := range l.Visits {
 			u, _ := users.v[v.User]
 			var userAge int
@@ -671,13 +673,13 @@ func main() {
 			if gender != "" && u.Gender != gender {
 				continue
 			}
-			marks = append(marks, float32(v.Mark))
+			marks = append(marks, float64(v.Mark))
 		}
-		var total float32 = 0
+		var total float64 = 0
 		for _, value:= range marks {
 			total += value
 		}
-		obj.Avg = total / float32(len(marks))
+		obj.Avg = toFixed(total / float64(len(marks)), 5)
 		err = json.NewEncoder(w).Encode(obj)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -777,4 +779,13 @@ func jsonRawToInt(r *json.RawMessage) (int, error) {
 	var result int
 	err := json.Unmarshal(*r, &result)
 	return result, err
+}
+
+func round(num float64) int {
+	return int(num + math.Copysign(0.5, num))
+}
+
+func toFixed(num float64, precision int) float64 {
+	output := math.Pow(10, float64(precision))
+	return float64(round(num * output)) / output
 }
