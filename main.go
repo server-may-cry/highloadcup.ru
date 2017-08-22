@@ -627,7 +627,7 @@ func main() {
 		for _, value:= range marks {
 			total += value
 		}
-		response := fmt.Sprintf(`{"avg":%s}`, strconv.FormatFloat(total, 'f', 5, 64))
+		response := fmt.Sprintf(`{"avg":%s}`, strconv.FormatFloat(total / float64(len(marks)), 'f', 5, 64))
 		w.Write([]byte(response))
 	})
 
