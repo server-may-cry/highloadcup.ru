@@ -523,7 +523,7 @@ func main() {
 			if country != "" && country != location.Country {
 				continue
 			}
-			if toDistance != "" && toDistanceInt < location.Distance {
+			if toDistance != "" && toDistanceInt <= location.Distance {
 				continue
 			}
 			if fromDate != "" && fromDateInt > v.VisitedAt {
