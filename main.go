@@ -463,8 +463,14 @@ func main() {
 		visits.mux.Unlock()
 		u, _ := users.v[blank.User]
 		u.Visits = append(u.Visits, blank)
+		users.mux.Lock()
+		users.v[u.ID] = u
+		users.mux.Unlock()
 		l, _ := locations.v[blank.Location]
 		l.Visits = append(l.Visits, blank)
+		locations.mux.Lock()
+		locations.v[l.ID] = l
+		locations.mux.Unlock()
 	})
 
 	// GET /users/<id>/visits
@@ -521,7 +527,7 @@ func main() {
 			if country != "" && country != location.Country {
 				continue
 			}
-			if toDistance != "" && toDistanceInt > location.Distance {
+			if toDistance != "" && toDistanceInt < location.Distance {
 				continue
 			}
 			if fromDate != "" && fromDateInt > v.VisitedAt {
