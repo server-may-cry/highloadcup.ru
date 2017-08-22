@@ -12,7 +12,7 @@ import (
 
 	"github.com/go-chi/chi"
 	"sort"
-	"math"
+	"fmt"
 )
 
 type safeUsers struct {
@@ -43,10 +43,6 @@ type LocationsFile struct {
 }
 type VisitsFile struct {
 	Data []Visit `json:"visits"`
-}
-
-type Avg struct {
-	Avg float64 `json:"avg"`
 }
 
 type VisitInUser struct {
@@ -605,7 +601,6 @@ func main() {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		obj := Avg{}
 		var marks []float64
 		for _, v := range l.Visits {
 			u, _ := users.v[v.User]
@@ -632,15 +627,8 @@ func main() {
 		for _, value:= range marks {
 			total += value
 		}
-		obj.Avg = toFixed(total / float64(len(marks)), 5)
-		if obj.Avg < 0 {
-			obj.Avg = 0
-		}
-		err = json.NewEncoder(w).Encode(obj)
-		if err != nil {
-			http.Error(w, "", http.StatusInternalServerError)
-			return
-		}
+		response := fmt.Sprintf(`{"avg":%s}`, strconv.FormatFloat(total, 'f', 5, 64))
+		w.Write([]byte(response))
 	})
 
 	http.ListenAndServe(":80", r)
@@ -730,13 +718,4 @@ func jsonRawToInt(r *json.RawMessage) (int, error) {
 	var result int
 	err := json.Unmarshal(*r, &result)
 	return result, err
-}
-
-func round(num float64) int {
-	return int(num + math.Copysign(0.5, num))
-}
-
-func toFixed(num float64, precision int) float64 {
-	output := math.Pow(10, float64(precision))
-	return float64(round(num * output)) / output
 }
