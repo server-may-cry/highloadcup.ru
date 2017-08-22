@@ -13,7 +13,6 @@ import (
 	"github.com/go-chi/chi"
 	"sort"
 	"fmt"
-	"math"
 )
 
 type safeUsers struct {
@@ -53,7 +52,7 @@ type VisitInUser struct {
 }
 
 type VisitsResponse struct {
-	Data []*VisitInUser `json:"visits"`
+	Data []VisitInUser `json:"visits"`
 }
 
 func init() {
@@ -461,14 +460,16 @@ func main() {
 		visits.mux.Lock()
 		visits.v[blank.ID] = blank
 		visits.mux.Unlock()
+
+		users.mux.Lock()
 		u, _ := users.v[blank.User]
 		u.Visits = append(u.Visits, &blank)
-		users.mux.Lock()
 		users.v[u.ID] = u
 		users.mux.Unlock()
+
+		locations.mux.Lock()
 		l, _ := locations.v[blank.Location]
 		l.Visits = append(l.Visits, &blank)
-		locations.mux.Lock()
 		locations.v[l.ID] = l
 		locations.mux.Unlock()
 	})
@@ -521,7 +522,7 @@ func main() {
 				return
 			}
 		}
-		obj := VisitsResponse{Data: make([]*VisitInUser, 0)}
+		obj := VisitsResponse{Data: make([]VisitInUser, 0)}
 		for _, v := range u.Visits {
 			location, _ := locations.v[v.Location]
 			if country != "" && country != location.Country {
@@ -536,7 +537,7 @@ func main() {
 			if toDate != "" && toDateInt < v.VisitedAt {
 				continue
 			}
-			obj.Data = append(obj.Data, &VisitInUser{
+			obj.Data = append(obj.Data, VisitInUser{
 				Mark: v.Mark,
 				VisitedAt: v.VisitedAt,
 				Place: location.Place,
@@ -631,15 +632,10 @@ func main() {
 		for _, value:= range marks {
 			total += value
 		}
-		avg := toFixed(total / float64(len(marks)), 5)
-		if avg < 0 {
-			avg = 0
+		if len(marks) > 0 {
+			total /= float64(len(marks))
 		}
-		response := fmt.Sprintf(`{"avg":%f}`, avg)
-		//if len(marks) > 0 {
-		//	total /= float64(len(marks))
-		//}
-		//response := fmt.Sprintf(`{"avg":%s}`, strconv.FormatFloat(total, 'f', 5, 64))
+		response := fmt.Sprintf(`{"avg":%s}`, strconv.FormatFloat(total, 'f', 5, 64))
 		w.Write([]byte(response))
 	})
 
@@ -734,13 +730,4 @@ func jsonRawToInt(r json.RawMessage) (int, error) {
 	var result int
 	err := json.Unmarshal(r, &result)
 	return result, err
-}
-
-func round(num float64) int {
-	return int(num + math.Copysign(0.5, num))
-}
-
-func toFixed(num float64, precision int) float64 {
-	output := math.Pow(10, float64(precision))
-	return float64(round(num * output)) / output
 }
