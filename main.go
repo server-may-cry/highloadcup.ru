@@ -16,22 +16,22 @@ import (
 )
 
 type safeUsers struct {
-	v   map[int]*User
+	v   map[int]User
 	mux sync.Mutex
 }
 type safeLocations struct {
-	v   map[int]*Location
+	v   map[int]Location
 	mux sync.Mutex
 }
 type safeVisits struct {
-	v   map[int]*Visit
+	v   map[int]Visit
 	mux sync.Mutex
 }
 
 const defaultMapSize = 100000
-var users = safeUsers{v: make(map[int]*User, defaultMapSize)}
-var locations = safeLocations{v: make(map[int]*Location, defaultMapSize)}
-var visits = safeVisits{v: make(map[int]*Visit, defaultMapSize)}
+var users = safeUsers{v: make(map[int]User, defaultMapSize)}
+var locations = safeLocations{v: make(map[int]Location, defaultMapSize)}
+var visits = safeVisits{v: make(map[int]Visit, defaultMapSize)}
 
 var successUpdate = []byte("{}")
 
@@ -82,7 +82,7 @@ func init() {
 			}
 			for _, element := range data.Data {
 				cp := element
-				users.v[element.ID] = &cp
+				users.v[element.ID] = cp
 			}
 		case "locations":
 			data := LocationsFile{}
@@ -92,7 +92,7 @@ func init() {
 			}
 			for _, element := range data.Data {
 				cp := element
-				locations.v[element.ID] = &cp
+				locations.v[element.ID] = cp
 			}
 		case "visits":
 			data := VisitsFile{}
@@ -102,7 +102,7 @@ func init() {
 			}
 			for _, element := range data.Data {
 				cp := element
-				visits.v[element.ID] = &cp
+				visits.v[element.ID] = cp
 			}
 		}
 		rc.Close()
@@ -113,13 +113,13 @@ func init() {
 		if !ok {
 			log.Fatal("not found user for visit")
 		}
-		u.Visits = append(u.Visits, visit)
+		u.Visits = append(u.Visits, &visit)
 
 		l, ok := locations.v[visit.Location]
 		if !ok {
 			log.Fatal("not found location for visit")
 		}
-		l.Visits = append(l.Visits, visit)
+		l.Visits = append(l.Visits, &visit)
 	}
 }
 
@@ -407,7 +407,7 @@ func main() {
 
 	// POST /<entity>/new
 	r.Post("/users/new", func(w http.ResponseWriter, r *http.Request) {
-		blank := &User{}
+		blank := User{}
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
@@ -425,7 +425,7 @@ func main() {
 		users.mux.Unlock()
 	})
 	r.Post("/locations/new", func(w http.ResponseWriter, r *http.Request) {
-		blank := &Location{}
+		blank := Location{}
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
@@ -442,7 +442,7 @@ func main() {
 		locations.mux.Unlock()
 	})
 	r.Post("/visits/new", func(w http.ResponseWriter, r *http.Request) {
-		blank := &Visit{}
+		blank := Visit{}
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
@@ -458,12 +458,12 @@ func main() {
 		visits.v[blank.ID] = blank
 		visits.mux.Unlock()
 		u, _ := users.v[blank.User]
-		u.Visits = append(u.Visits, blank)
+		u.Visits = append(u.Visits, &blank)
 		users.mux.Lock()
 		users.v[u.ID] = u
 		users.mux.Unlock()
 		l, _ := locations.v[blank.Location]
-		l.Visits = append(l.Visits, blank)
+		l.Visits = append(l.Visits, &blank)
 		locations.mux.Lock()
 		locations.v[l.ID] = l
 		locations.mux.Unlock()
@@ -634,7 +634,7 @@ func main() {
 	http.ListenAndServe(":80", r)
 }
 
-func isValidUser(u *User) bool {
+func isValidUser(u User) bool {
 	if u.ID == 0 {
 		return false
 	}
@@ -660,7 +660,7 @@ func isValidUser(u *User) bool {
 	return true
 }
 
-func isValidLocation(l *Location) bool {
+func isValidLocation(l Location) bool {
 	if l.ID == 0 {
 		return false
 	}
@@ -686,7 +686,7 @@ func isValidLocation(l *Location) bool {
 	return true
 }
 
-func isValidVisit(v *Visit) bool {
+func isValidVisit(v Visit) bool {
 	if v.ID == 0 {
 		return false
 	}
