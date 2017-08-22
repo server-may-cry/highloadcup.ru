@@ -115,12 +115,14 @@ func init() {
 			log.Fatal("not found user for visit")
 		}
 		u.Visits = append(u.Visits, &visit)
+		users.v[u.ID] = u
 
 		l, ok := locations.v[visit.Location]
 		if !ok {
 			log.Fatal("not found location for visit")
 		}
 		l.Visits = append(l.Visits, &visit)
+		locations.v[l.ID] = l
 	}
 }
 
@@ -212,27 +214,27 @@ func main() {
 			return
 		}
 
-		gender, err := jsonRawToString(&blank.Gender)
+		gender, err := jsonRawToString(blank.Gender)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		birthDate, err := jsonRawToInt(&blank.BirthDate)
+		birthDate, err := jsonRawToInt(blank.BirthDate)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		email, err := jsonRawToString(&blank.Email)
+		email, err := jsonRawToString(blank.Email)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		firstName, err := jsonRawToString(&blank.FirstName)
+		firstName, err := jsonRawToString(blank.FirstName)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		lastName, err := jsonRawToString(&blank.LastName)
+		lastName, err := jsonRawToString(blank.LastName)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
@@ -293,22 +295,22 @@ func main() {
 			return
 		}
 
-		place, err := jsonRawToString(&blank.Place)
+		place, err := jsonRawToString(blank.Place)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		country, err := jsonRawToString(&blank.Country)
+		country, err := jsonRawToString(blank.Country)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		city, err := jsonRawToString(&blank.City)
+		city, err := jsonRawToString(blank.City)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		distance, err := jsonRawToInt(&blank.Distance)
+		distance, err := jsonRawToInt(blank.Distance)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
@@ -366,22 +368,22 @@ func main() {
 			return
 		}
 
-		location, err := jsonRawToInt(&blank.Location)
+		location, err := jsonRawToInt(blank.Location)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		user, err := jsonRawToInt(&blank.User)
+		user, err := jsonRawToInt(blank.User)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		mark, err := jsonRawToInt(&blank.Mark)
+		mark, err := jsonRawToInt(blank.Mark)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		visitedAt, err := jsonRawToInt(&blank.VisitedAt)
+		visitedAt, err := jsonRawToInt(blank.VisitedAt)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
@@ -640,7 +642,11 @@ func main() {
 		w.Write([]byte(response))
 	})
 
-	http.ListenAndServe(":80", r)
+	fmt.Println("Ready")
+	err := http.ListenAndServe(":80", r)
+	if err != nil {
+		log.Fatal(err)
+	}
 }
 
 func isValidUser(u User) bool {
@@ -712,20 +718,20 @@ func isValidVisit(v Visit) bool {
 	return true
 }
 
-func jsonRawToString(r *json.RawMessage) (string, error) {
-	if len(*r) == 0 {
+func jsonRawToString(r json.RawMessage) (string, error) {
+	if len(r) == 0 {
 		return "" , nil
 	}
 	var result string
-	err := json.Unmarshal(*r, &result)
+	err := json.Unmarshal(r, &result)
 	return result, err
 }
-func jsonRawToInt(r *json.RawMessage) (int, error) {
-	if len(*r) == 0 {
+func jsonRawToInt(r json.RawMessage) (int, error) {
+	if len(r) == 0 {
 		return 0, nil
 	}
 	var result int
-	err := json.Unmarshal(*r, &result)
+	err := json.Unmarshal(r, &result)
 	return result, err
 }
 
