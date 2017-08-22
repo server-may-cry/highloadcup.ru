@@ -110,18 +110,19 @@ func init() {
 	}
 
 	for _, visit := range visits.v {
+		cpv := visit
 		u, ok := users.v[visit.User]
 		if !ok {
 			log.Fatal("not found user for visit")
 		}
-		u.Visits = append(u.Visits, &visit)
+		u.Visits = append(u.Visits, &cpv)
 		users.v[u.ID] = u
 
 		l, ok := locations.v[visit.Location]
 		if !ok {
 			log.Fatal("not found location for visit")
 		}
-		l.Visits = append(l.Visits, &visit)
+		l.Visits = append(l.Visits, &cpv)
 		locations.v[l.ID] = l
 	}
 }
@@ -634,7 +635,7 @@ func main() {
 		if avg < 0 {
 			avg = 0
 		}
-		response := fmt.Sprintf(`{"avg":%s}`, avg)
+		response := fmt.Sprintf(`{"avg":%f}`, avg)
 		//if len(marks) > 0 {
 		//	total /= float64(len(marks))
 		//}
