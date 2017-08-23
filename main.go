@@ -35,6 +35,8 @@ var visits = safeVisits{v: make(map[int]Visit, defaultMapSize)}
 
 var successUpdate = []byte("{}")
 
+var timeStampStart time.Time
+
 type UsersFile struct {
 	Data []User `json:"users"`
 }
@@ -56,6 +58,8 @@ type VisitsResponse struct {
 }
 
 func init() {
+	timeStampStart = time.Now()
+
 	r, err := zip.OpenReader("/tmp/data/data.zip")
 	if err != nil {
 		log.Fatal(err)
@@ -524,7 +528,11 @@ func main() {
 		}
 		obj := VisitsResponse{Data: make([]VisitInUser, 0)}
 		for _, v := range u.Visits {
-			location, _ := locations.v[v.Location]
+			location, ok := locations.v[v.Location]
+			if !ok {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
 			if country != "" && country != location.Country {
 				continue
 			}
@@ -608,9 +616,12 @@ func main() {
 		}
 		var marks []float64
 		for _, v := range l.Visits {
-			u, _ := users.v[v.User]
-			var userAge int
-			userAge = int(time.Now().Sub(time.Unix(u.BirthDate, 0)).Hours() / 24 / 365)
+			u, ok := users.v[v.User]
+			if !ok {
+				http.Error(w, "", http.StatusBadRequest)
+				return
+			}
+			userAge := ageTo(time.Unix(u.BirthDate, 0), timeStampStart)
 			if fromDate != "" && v.VisitedAt < fromDateInt {
 				continue
 			}
@@ -620,7 +631,7 @@ func main() {
 			if fromAge != "" && fromAgeInt > userAge {
 				continue
 			}
-			if toAge != "" && toAgeInt < userAge {
+			if toAge != "" && toAgeInt <= userAge {
 				continue
 			}
 			if gender != "" && u.Gender != gender {
@@ -730,4 +741,15 @@ func jsonRawToInt(r json.RawMessage) (int, error) {
 	var result int
 	err := json.Unmarshal(r, &result)
 	return result, err
+}
+
+func ageTo(born, to time.Time) int {
+	years := to.Year() - born.Year()
+	if born.Month() > to.Month() {
+		years--
+	} else if born.Month() == to.Month() && born.Day() < to.Day() {
+		years--
+	}
+
+	return years
 }
