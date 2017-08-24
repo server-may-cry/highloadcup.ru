@@ -86,6 +86,7 @@ func init() {
 			}
 			for _, element := range data.Data {
 				cp := element
+				cp.Age = ageTo(time.Unix(cp.BirthDate, 0), timeStampStart)
 				users.v[element.ID] = cp
 			}
 		case "locations":
@@ -427,6 +428,8 @@ func main() {
 		}
 
 		w.Write(successUpdate)
+
+		blank.Age = ageTo(time.Unix(blank.BirthDate, 0), timeStampStart)
 		users.mux.Lock()
 		users.v[blank.ID] = blank
 		users.mux.Unlock()
@@ -554,11 +557,13 @@ func main() {
 		sort.Slice(obj.Data, func (i, j int) bool {
 			return obj.Data[i].VisitedAt < obj.Data[j].VisitedAt
 		})
-		err = json.NewEncoder(w).Encode(obj)
+		bytes, err := json.Marshal(obj)
 		if err != nil {
 			http.Error(w, "", http.StatusInternalServerError)
 			return
 		}
+		w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
+		w.Write(bytes)
 	})
 
 	// GET /locations/<id>/avg
@@ -621,17 +626,16 @@ func main() {
 				http.Error(w, "", http.StatusBadRequest)
 				return
 			}
-			userAge := ageTo(time.Unix(u.BirthDate, 0), timeStampStart)
 			if fromDate != "" && v.VisitedAt < fromDateInt {
 				continue
 			}
 			if toDate != "" && v.VisitedAt > toDateInt {
 				continue
 			}
-			if fromAge != "" && fromAgeInt > userAge {
+			if fromAge != "" && fromAgeInt > u.Age {
 				continue
 			}
-			if toAge != "" && toAgeInt <= userAge {
+			if toAge != "" && toAgeInt <= u.Age {
 				continue
 			}
 			if gender != "" && u.Gender != gender {
