@@ -3,16 +3,16 @@ package main
 import (
 	"archive/zip"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/go-chi/chi"
-	"sort"
-	"fmt"
 )
 
 type safeUsers struct {
@@ -24,14 +24,14 @@ type safeLocations struct {
 	mux sync.Mutex
 }
 type safeVisits struct {
-	v   map[int]Visit
+	v   map[int]*Visit
 	mux sync.Mutex
 }
 
 const defaultMapSize = 100000
 var users = safeUsers{v: make(map[int]User, defaultMapSize)}
 var locations = safeLocations{v: make(map[int]Location, defaultMapSize)}
-var visits = safeVisits{v: make(map[int]Visit, defaultMapSize)}
+var visits = safeVisits{v: make(map[int]*Visit, defaultMapSize)}
 
 var successUpdate = []byte("{}")
 
@@ -107,7 +107,7 @@ func init() {
 			}
 			for _, element := range data.Data {
 				cp := element
-				visits.v[element.ID] = cp
+				visits.v[element.ID] = &cp
 			}
 		}
 		rc.Close()
@@ -119,14 +119,14 @@ func init() {
 		if !ok {
 			log.Fatal("not found user for visit")
 		}
-		u.Visits = append(u.Visits, &cpv)
+		u.Visits = append(u.Visits, cpv)
 		users.v[u.ID] = u
 
 		l, ok := locations.v[visit.Location]
 		if !ok {
 			log.Fatal("not found location for visit")
 		}
-		l.Visits = append(l.Visits, &cpv)
+		l.Visits = append(l.Visits, cpv)
 		locations.v[l.ID] = l
 	}
 }
@@ -189,13 +189,15 @@ func main() {
 
 	// POST /<entity>/<id>
 	r.Post("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
+		users.mux.Lock()
+		defer users.mux.Unlock()
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
 		if err != nil {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
 		blank := UserRequest{}
-		obj, ok := users.v[id]
+		_, ok := users.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
@@ -245,6 +247,7 @@ func main() {
 			return
 		}
 
+		obj, _ := users.v[id]
 		if gender != "" {
 			obj.Gender = gender
 		}
@@ -266,19 +269,19 @@ func main() {
 			return
 		}
 
-		w.Write(successUpdate)
-		users.mux.Lock()
 		users.v[id] = obj
-		users.mux.Unlock()
+		w.Write(successUpdate)
 	})
 	r.Post("/locations/{id}", func(w http.ResponseWriter, r *http.Request) {
+		locations.mux.Lock()
+		defer locations.mux.Unlock()
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
 		if err != nil {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
 		blank := LocationRequest{}
-		obj, ok := locations.v[id]
+		_, ok := locations.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
@@ -321,6 +324,7 @@ func main() {
 			return
 		}
 
+		obj, _ := locations.v[id]
 		if place != "" {
 			obj.Place = place
 		}
@@ -339,19 +343,19 @@ func main() {
 			return
 		}
 
-		w.Write(successUpdate)
-		locations.mux.Lock()
 		locations.v[id] = obj
-		locations.mux.Unlock()
+		w.Write(successUpdate)
 	})
 	r.Post("/visits/{id}", func(w http.ResponseWriter, r *http.Request) {
+		visits.mux.Lock()
+		defer visits.mux.Unlock()
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
 		if err != nil {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
 		blank := VisitRequest{}
-		obj, ok := visits.v[id]
+		_, ok := visits.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
 			return
@@ -394,6 +398,7 @@ func main() {
 			return
 		}
 
+		obj, _ := visits.v[id]
 		if location != 0 {
 			obj.Location = location
 		}
@@ -407,10 +412,8 @@ func main() {
 			obj.VisitedAt = visitedAt
 		}
 
+		//visits.v[id] = obj
 		w.Write(successUpdate)
-		visits.mux.Lock()
-		visits.v[id] = obj
-		visits.mux.Unlock()
 	})
 
 	// POST /<entity>/new
@@ -426,13 +429,11 @@ func main() {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-
-		w.Write(successUpdate)
-
 		blank.Age = ageTo(time.Unix(blank.BirthDate, 0), timeStampStart)
 		users.mux.Lock()
 		users.v[blank.ID] = blank
 		users.mux.Unlock()
+		w.Write(successUpdate)
 	})
 	r.Post("/locations/new", func(w http.ResponseWriter, r *http.Request) {
 		blank := Location{}
@@ -446,39 +447,49 @@ func main() {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		w.Write(successUpdate)
 		locations.mux.Lock()
 		locations.v[blank.ID] = blank
 		locations.mux.Unlock()
+		w.Write(successUpdate)
 	})
 	r.Post("/visits/new", func(w http.ResponseWriter, r *http.Request) {
-		blank := Visit{}
+		blank := &Visit{}
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 
-		if !isValidVisit(blank) {
+		if !isValidVisit(*blank) {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		w.Write(successUpdate)
 		visits.mux.Lock()
 		visits.v[blank.ID] = blank
 		visits.mux.Unlock()
 
 		users.mux.Lock()
-		u, _ := users.v[blank.User]
-		u.Visits = append(u.Visits, &blank)
+		u, ok := users.v[blank.User]
+		if !ok {
+			http.Error(w, "", http.StatusBadRequest)
+			users.mux.Unlock()
+			return
+		}
+		u.Visits = append(u.Visits, blank)
 		users.v[u.ID] = u
 		users.mux.Unlock()
 
 		locations.mux.Lock()
-		l, _ := locations.v[blank.Location]
-		l.Visits = append(l.Visits, &blank)
+		l, ok := locations.v[blank.Location]
+		if !ok {
+			http.Error(w, "", http.StatusBadRequest)
+			locations.mux.Unlock()
+			return
+		}
+		l.Visits = append(l.Visits, blank)
 		locations.v[l.ID] = l
 		locations.mux.Unlock()
+		w.Write(successUpdate)
 	})
 
 	// GET /users/<id>/visits
@@ -549,12 +560,12 @@ func main() {
 				continue
 			}
 			obj.Data = append(obj.Data, VisitInUser{
-				Mark: v.Mark,
+				Mark:      v.Mark,
 				VisitedAt: v.VisitedAt,
-				Place: location.Place,
+				Place:     location.Place,
 			})
 		}
-		sort.Slice(obj.Data, func (i, j int) bool {
+		sort.Slice(obj.Data, func(i, j int) bool {
 			return obj.Data[i].VisitedAt < obj.Data[j].VisitedAt
 		})
 		bytes, err := json.Marshal(obj)
@@ -644,7 +655,7 @@ func main() {
 			marks = append(marks, float64(v.Mark))
 		}
 		var total float64 = 0
-		for _, value:= range marks {
+		for _, value := range marks {
 			total += value
 		}
 		if len(marks) > 0 {
@@ -655,6 +666,10 @@ func main() {
 	})
 
 	fmt.Println("Ready")
+	go func() {
+		<-time.After(time.Second * 5)
+		warmServer()
+	}()
 	err := http.ListenAndServe(":80", r)
 	if err != nil {
 		log.Fatal(err)
@@ -732,7 +747,7 @@ func isValidVisit(v Visit) bool {
 
 func jsonRawToString(r json.RawMessage) (string, error) {
 	if len(r) == 0 {
-		return "" , nil
+		return "", nil
 	}
 	var result string
 	err := json.Unmarshal(r, &result)
@@ -756,4 +771,27 @@ func ageTo(born, to time.Time) int {
 	}
 
 	return years
+}
+
+func warmServer() {
+	end := time.Now().Add(time.Second * 10)
+	urls := []string{
+		"/users/123",
+		"/visits/123",
+		"/locations/123",
+		"/users/123/visits",
+		"/locations/123/avg",
+	}
+
+	for {
+		if time.Now().After(end) {
+			return
+		}
+		for _, url := range urls {
+			r, _ := http.Get("http://127.0.0.1:80" + url)
+			if r != nil {
+				r.Body.Close()
+			}
+		}
+	}
 }
