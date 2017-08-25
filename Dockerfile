@@ -7,7 +7,7 @@ ADD . /go/src/github.com/server-may-cry/highloadcup.ru
 WORKDIR /go/src/github.com/server-may-cry/highloadcup.ru
 
 RUN dep ensure && \
-    CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo .
+    GOGC=off CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo .
 
 FROM scratch
 COPY --from=build-env /go/src/github.com/server-may-cry/highloadcup.ru/highloadcup.ru /server

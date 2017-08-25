@@ -3,19 +3,13 @@
 
 [[projects]]
   name = "github.com/go-chi/chi"
-  packages = ["."]
+  packages = [".","middleware"]
   revision = "25354a53cca531cb2efd3f1d3c565d90ff04d802"
   version = "v3.1.5"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/pquerna/ffjson"
-  packages = [".","fflib/v1","fflib/v1/internal","generator","inception","shared"]
-  revision = "9a5203b7a07166f217f5f8177d5b16177acad3b2"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "399f591d7db02ad6e36b79b1fb929bbca915b0a490eefa722bb1323c11b292b9"
+  inputs-digest = "6d695fa9d51774bc610aac2211212161f9cf39741fec3ec84c1e8c56dc77e538"
   solver-name = "gps-cdcl"
   solver-version = 1

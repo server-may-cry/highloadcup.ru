@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/middleware"
 )
 
 type safeUsers struct {
@@ -27,6 +28,8 @@ type safeVisits struct {
 	v   map[int]*Visit
 	mux sync.Mutex
 }
+
+const debug = false
 
 const defaultMapSize = 100000
 var users = safeUsers{v: make(map[int]User, defaultMapSize)}
@@ -703,6 +706,10 @@ func main() {
 		response := fmt.Sprintf(`{"avg":%s}`, strconv.FormatFloat(total, 'f', 5, 64))
 		w.Write([]byte(response))
 	})
+
+	if debug {
+		r.Mount("/debug", middleware.Profiler())
+	}
 
 	fmt.Println("Ready")
 	go func() {
