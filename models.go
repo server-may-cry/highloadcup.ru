@@ -13,7 +13,7 @@ type Location struct {
 	Country  string `json:"country"`
 
 	// cache
-	Visits []*Visit `json:"-"`
+	Visits map[int]*Visit `json:"-"`
 }
 
 // {"first_name": "Злата", "last_name": "Кисатович", "birth_date": -627350400, "gender": "f", "id": 1, "email": "coorzaty@me.com"}
@@ -27,7 +27,7 @@ type User struct {
 	Email     string `json:"email"`
 
 	// cache
-	Visits []*Visit `json:"-"`
+	Visits map[int]*Visit `json:"-"`
 }
 
 // {"user": 42, "location": 13, "visited_at": 1123175509, "id": 1, "mark": 4}

@@ -58,6 +58,7 @@ type VisitsResponse struct {
 }
 
 func init() {
+	log.SetFlags(log.LstdFlags)
 	timeStampStart = time.Now()
 
 	r, err := zip.OpenReader("/tmp/data/data.zip")
@@ -86,6 +87,7 @@ func init() {
 			}
 			for _, element := range data.Data {
 				cp := element
+				cp.Visits = make(map[int]*Visit)
 				cp.Age = ageTo(time.Unix(cp.BirthDate, 0), timeStampStart)
 				users.v[element.ID] = cp
 			}
@@ -97,6 +99,7 @@ func init() {
 			}
 			for _, element := range data.Data {
 				cp := element
+				cp.Visits = make(map[int]*Visit)
 				locations.v[element.ID] = cp
 			}
 		case "visits":
@@ -119,14 +122,14 @@ func init() {
 		if !ok {
 			log.Fatal("not found user for visit")
 		}
-		u.Visits = append(u.Visits, cpv)
+		u.Visits[cpv.ID] = cpv
 		users.v[u.ID] = u
 
 		l, ok := locations.v[visit.Location]
 		if !ok {
 			log.Fatal("not found location for visit")
 		}
-		l.Visits = append(l.Visits, cpv)
+		l.Visits[cpv.ID] = cpv
 		locations.v[l.ID] = l
 	}
 }
@@ -400,9 +403,29 @@ func main() {
 
 		obj, _ := visits.v[id]
 		if location != 0 {
+			if obj.Location != location {
+				locations.mux.Lock()
+				l, _ := locations.v[obj.Location]
+				delete(l.Visits, obj.ID)
+				locations.v[obj.Location] = l
+
+				nl, _ := locations.v[location]
+				nl.Visits[obj.ID] = obj
+				locations.mux.Unlock()
+			}
 			obj.Location = location
 		}
 		if user != 0 {
+			if obj.User != user {
+				users.mux.Lock()
+				u, _ := users.v[obj.User]
+				delete(u.Visits, obj.ID)
+				users.v[obj.User] = u
+
+				nu, _ := users.v[user]
+				nu.Visits[obj.ID] = obj
+				users.mux.Unlock()
+			}
 			obj.User = user
 		}
 		if mark != 0 {
@@ -475,8 +498,8 @@ func main() {
 			users.mux.Unlock()
 			return
 		}
-		u.Visits = append(u.Visits, blank)
-		users.v[u.ID] = u
+		u.Visits[blank.ID] = blank
+		users.v[blank.User] = u
 		users.mux.Unlock()
 
 		locations.mux.Lock()
@@ -486,8 +509,8 @@ func main() {
 			locations.mux.Unlock()
 			return
 		}
-		l.Visits = append(l.Visits, blank)
-		locations.v[l.ID] = l
+		l.Visits[blank.ID] = blank
+		locations.v[blank.Location] = l
 		locations.mux.Unlock()
 		w.Write(successUpdate)
 	})
