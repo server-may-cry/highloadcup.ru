@@ -1,4 +1,4 @@
-FROM golang:1.8-alpine AS build-env
+FROM golang:1.9-alpine AS build-env
 RUN apk update && apk upgrade && \
     apk add --no-cache git openssl && \
     go get -u github.com/golang/dep/cmd/dep
