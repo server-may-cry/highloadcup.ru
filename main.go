@@ -149,11 +149,14 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		err = json.NewEncoder(w).Encode(obj)
-		if err != nil {
-			http.Error(w, "", http.StatusInternalServerError)
-			return
+		if len(obj.JSON) == 0 {
+			obj.JSON, err = json.Marshal(obj)
+			if err != nil {
+				http.Error(w, "", http.StatusInternalServerError)
+				return
+			}
 		}
+		w.Write(obj.JSON)
 	})
 	r.Get("/locations/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -166,11 +169,14 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		err = json.NewEncoder(w).Encode(obj)
-		if err != nil {
-			http.Error(w, "", http.StatusInternalServerError)
-			return
+		if len(obj.JSON) == 0 {
+			obj.JSON, err = json.Marshal(obj)
+			if err != nil {
+				http.Error(w, "", http.StatusInternalServerError)
+				return
+			}
 		}
+		w.Write(obj.JSON)
 	})
 	r.Get("/visits/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -183,11 +189,14 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		err = json.NewEncoder(w).Encode(obj)
-		if err != nil {
-			http.Error(w, "", http.StatusInternalServerError)
-			return
+		if len(obj.JSON) == 0 {
+			obj.JSON, err = json.Marshal(obj)
+			if err != nil {
+				http.Error(w, "", http.StatusInternalServerError)
+				return
+			}
 		}
+		w.Write(obj.JSON)
 	})
 
 	// POST /<entity>/<id>
@@ -272,6 +281,7 @@ func main() {
 			return
 		}
 
+		obj.JSON = []byte("")
 		users.v[id] = obj
 		users.mux.Unlock()
 		w.Write(successUpdate)
@@ -346,6 +356,7 @@ func main() {
 			return
 		}
 
+		obj.JSON = []byte("")
 		locations.v[id] = obj
 		locations.mux.Unlock()
 		w.Write(successUpdate)
@@ -435,6 +446,7 @@ func main() {
 			obj.VisitedAt = visitedAt
 		}
 
+		obj.JSON = []byte("")
 		//visits.v[id] = obj
 		visits.mux.Unlock()
 		w.Write(successUpdate)

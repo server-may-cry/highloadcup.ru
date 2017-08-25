@@ -14,6 +14,7 @@ type Location struct {
 
 	// cache
 	Visits map[int]*Visit `json:"-"`
+	JSON   []byte         `json:"-"`
 }
 
 // {"first_name": "Злата", "last_name": "Кисатович", "birth_date": -627350400, "gender": "f", "id": 1, "email": "coorzaty@me.com"}
@@ -28,6 +29,7 @@ type User struct {
 
 	// cache
 	Visits map[int]*Visit `json:"-"`
+	JSON   []byte         `json:"-"`
 }
 
 // {"user": 42, "location": 13, "visited_at": 1123175509, "id": 1, "mark": 4}
@@ -37,6 +39,9 @@ type Visit struct {
 	Location  int `json:"location"`
 	VisitedAt int `json:"visited_at"`
 	Mark      int `json:"mark"`
+
+	// cache
+	JSON []byte `json:"-"`
 }
 
 // if any field is `null` return status 400
