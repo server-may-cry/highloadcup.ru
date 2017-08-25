@@ -89,6 +89,7 @@ func init() {
 				cp := element
 				cp.Visits = make(map[int]*Visit)
 				cp.Age = ageTo(time.Unix(cp.BirthDate, 0), timeStampStart)
+				cp.JSON, _ = json.Marshal(cp)
 				users.v[element.ID] = cp
 			}
 		case "locations":
@@ -100,6 +101,7 @@ func init() {
 			for _, element := range data.Data {
 				cp := element
 				cp.Visits = make(map[int]*Visit)
+				cp.JSON, _ = json.Marshal(cp)
 				locations.v[element.ID] = cp
 			}
 		case "visits":
@@ -110,6 +112,7 @@ func init() {
 			}
 			for _, element := range data.Data {
 				cp := element
+				cp.JSON, _ = json.Marshal(cp)
 				visits.v[element.ID] = &cp
 			}
 		}
