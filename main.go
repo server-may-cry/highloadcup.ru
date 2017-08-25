@@ -192,8 +192,6 @@ func main() {
 
 	// POST /<entity>/<id>
 	r.Post("/users/{id}", func(w http.ResponseWriter, r *http.Request) {
-		users.mux.Lock()
-		defer users.mux.Unlock()
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
 		if err != nil {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
@@ -250,12 +248,14 @@ func main() {
 			return
 		}
 
+		users.mux.Lock()
 		obj, _ := users.v[id]
 		if gender != "" {
 			obj.Gender = gender
 		}
-		if birthDate != 0 {
+		if birthDate != 0 || string(blank.BirthDate) == "0" {
 			obj.BirthDate = int64(birthDate)
+			obj.Age = ageTo(time.Unix(obj.BirthDate, 0), timeStampStart)
 		}
 		if email != "" {
 			obj.Email = email
@@ -273,11 +273,10 @@ func main() {
 		}
 
 		users.v[id] = obj
+		users.mux.Unlock()
 		w.Write(successUpdate)
 	})
 	r.Post("/locations/{id}", func(w http.ResponseWriter, r *http.Request) {
-		locations.mux.Lock()
-		defer locations.mux.Unlock()
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
 		if err != nil {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
@@ -327,6 +326,7 @@ func main() {
 			return
 		}
 
+		locations.mux.Lock()
 		obj, _ := locations.v[id]
 		if place != "" {
 			obj.Place = place
@@ -347,11 +347,10 @@ func main() {
 		}
 
 		locations.v[id] = obj
+		locations.mux.Unlock()
 		w.Write(successUpdate)
 	})
 	r.Post("/visits/{id}", func(w http.ResponseWriter, r *http.Request) {
-		visits.mux.Lock()
-		defer visits.mux.Unlock()
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
 		if err != nil {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
@@ -401,6 +400,7 @@ func main() {
 			return
 		}
 
+		visits.mux.Lock()
 		obj, _ := visits.v[id]
 		if location != 0 {
 			if obj.Location != location {
@@ -436,6 +436,7 @@ func main() {
 		}
 
 		//visits.v[id] = obj
+		visits.mux.Unlock()
 		w.Write(successUpdate)
 	})
 
@@ -716,9 +717,6 @@ func isValidUser(u User) bool {
 		return false
 	}
 	if len(u.Email) > 50 {
-		return false
-	}
-	if u.BirthDate == 0 {
 		return false
 	}
 
