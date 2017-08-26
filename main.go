@@ -32,6 +32,7 @@ type safeVisits struct {
 const debug = false
 
 const defaultMapSize = 100000
+
 var users = safeUsers{v: make(map[int]User, defaultMapSize)}
 var locations = safeLocations{v: make(map[int]Location, defaultMapSize)}
 var visits = safeVisits{v: make(map[int]*Visit, defaultMapSize)}
@@ -92,7 +93,6 @@ func init() {
 				cp := element
 				cp.Visits = make(map[int]*Visit)
 				cp.Age = ageTo(time.Unix(cp.BirthDate, 0), timeStampStart)
-				cp.JSON, _ = json.Marshal(cp)
 				users.v[element.ID] = cp
 			}
 		case "locations":
@@ -104,7 +104,6 @@ func init() {
 			for _, element := range data.Data {
 				cp := element
 				cp.Visits = make(map[int]*Visit)
-				cp.JSON, _ = json.Marshal(cp)
 				locations.v[element.ID] = cp
 			}
 		case "visits":
@@ -115,7 +114,6 @@ func init() {
 			}
 			for _, element := range data.Data {
 				cp := element
-				cp.JSON, _ = json.Marshal(cp)
 				visits.v[element.ID] = &cp
 			}
 		}
@@ -155,14 +153,7 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		if len(obj.JSON) == 0 {
-			obj.JSON, err = json.Marshal(obj)
-			if err != nil {
-				http.Error(w, "", http.StatusInternalServerError)
-				return
-			}
-		}
-		w.Write(obj.JSON)
+		json.NewEncoder(w).Encode(obj)
 	})
 	r.Get("/locations/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -175,14 +166,7 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		if len(obj.JSON) == 0 {
-			obj.JSON, err = json.Marshal(obj)
-			if err != nil {
-				http.Error(w, "", http.StatusInternalServerError)
-				return
-			}
-		}
-		w.Write(obj.JSON)
+		json.NewEncoder(w).Encode(obj)
 	})
 	r.Get("/visits/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -195,14 +179,7 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		if len(obj.JSON) == 0 {
-			obj.JSON, err = json.Marshal(obj)
-			if err != nil {
-				http.Error(w, "", http.StatusInternalServerError)
-				return
-			}
-		}
-		w.Write(obj.JSON)
+		json.NewEncoder(w).Encode(obj)
 	})
 
 	// POST /<entity>/<id>
@@ -287,7 +264,6 @@ func main() {
 			return
 		}
 
-		obj.JSON = []byte("")
 		users.v[id] = obj
 		users.mux.Unlock()
 		w.Write(successUpdate)
@@ -362,7 +338,6 @@ func main() {
 			return
 		}
 
-		obj.JSON = []byte("")
 		locations.v[id] = obj
 		locations.mux.Unlock()
 		w.Write(successUpdate)
@@ -452,7 +427,6 @@ func main() {
 			obj.VisitedAt = visitedAt
 		}
 
-		obj.JSON = []byte("")
 		//visits.v[id] = obj
 		visits.mux.Unlock()
 		w.Write(successUpdate)
