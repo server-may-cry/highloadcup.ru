@@ -1,8 +1,18 @@
-package main
+package dto
 
 import (
 	"encoding/json"
 )
+
+type UsersFile struct {
+	Data []User `json:"users"`
+}
+type LocationsFile struct {
+	Data []Location `json:"locations"`
+}
+type VisitsFile struct {
+	Data []Visit `json:"visits"`
+}
 
 // {"distance": 9, "city": "Новоомск", "place": "Ресторан", "id": 1, "country": "Венесуэлла"}
 type Location struct {
@@ -12,7 +22,7 @@ type Location struct {
 	Place    string `json:"place"`
 	Country  string `json:"country"`
 
-	// cache
+	// links
 	Visits map[int]*Visit `json:"-"`
 }
 
@@ -26,7 +36,7 @@ type User struct {
 	Gender    string `json:"gender"`
 	Email     string `json:"email"`
 
-	// cache
+	// links
 	Visits map[int]*Visit `json:"-"`
 }
 
@@ -48,6 +58,7 @@ type LocationRequest struct {
 	Place    json.RawMessage `json:"place"`
 	Country  json.RawMessage `json:"country"`
 }
+
 type UserRequest struct {
 	ID        json.RawMessage `json:"id"`
 	FirstName json.RawMessage `json:"first_name"`
@@ -56,10 +67,21 @@ type UserRequest struct {
 	Gender    json.RawMessage `json:"gender"`
 	Email     json.RawMessage `json:"email"`
 }
+
 type VisitRequest struct {
 	ID        json.RawMessage `json:"id"`
 	User      json.RawMessage `json:"user"`
 	Location  json.RawMessage `json:"location"`
 	VisitedAt json.RawMessage `json:"visited_at"`
 	Mark      json.RawMessage `json:"mark"`
+}
+
+type VisitInUser struct {
+	Mark      int    `json:"mark"`
+	VisitedAt int    `json:"visited_at"`
+	Place     string `json:"place"`
+}
+
+type VisitsResponse struct {
+	Data []VisitInUser `json:"visits"`
 }

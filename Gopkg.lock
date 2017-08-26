@@ -1,7 +1,13 @@
-memo = "6d695fa9d51774bc610aac2211212161f9cf39741fec3ec84c1e8c56dc77e538"
+memo = "b2b7745b1e15e768fa2951b32c59dc6f8d776ab20cc28e92395f4ba6ccecb589"
 
 [[projects]]
   name = "github.com/go-chi/chi"
   packages = [".","middleware"]
   revision = "ba73ba0623af32e4e5f09880177e73bd78d98852"
   version = "v3.2.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/mailru/easyjson"
+  packages = [".","buffer","jlexer","jwriter"]
+  revision = "3b3bbef4e2d9a6f24d7ee73a894afbc064f0e057"

@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"sort"
@@ -14,18 +15,19 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/server-may-cry/highloadcup.ru/dto"
 )
 
 type safeUsers struct {
-	v   map[int]User
+	v   map[int]dto.User
 	mux sync.Mutex
 }
 type safeLocations struct {
-	v   map[int]Location
+	v   map[int]dto.Location
 	mux sync.Mutex
 }
 type safeVisits struct {
-	v   map[int]*Visit
+	v   map[int]*dto.Visit
 	mux sync.Mutex
 }
 
@@ -33,33 +35,13 @@ const debug = false
 
 const defaultMapSize = 100000
 
-var users = safeUsers{v: make(map[int]User, defaultMapSize)}
-var locations = safeLocations{v: make(map[int]Location, defaultMapSize)}
-var visits = safeVisits{v: make(map[int]*Visit, defaultMapSize)}
+var users = safeUsers{v: make(map[int]dto.User, defaultMapSize)}
+var locations = safeLocations{v: make(map[int]dto.Location, defaultMapSize)}
+var visits = safeVisits{v: make(map[int]*dto.Visit, defaultMapSize)}
 
 var successUpdate = []byte("{}")
 
 var timeStampStart time.Time
-
-type UsersFile struct {
-	Data []User `json:"users"`
-}
-type LocationsFile struct {
-	Data []Location `json:"locations"`
-}
-type VisitsFile struct {
-	Data []Visit `json:"visits"`
-}
-
-type VisitInUser struct {
-	Mark      int    `json:"mark"`
-	VisitedAt int    `json:"visited_at"`
-	Place     string `json:"place"`
-}
-
-type VisitsResponse struct {
-	Data []VisitInUser `json:"visits"`
-}
 
 func init() {
 	log.SetFlags(log.LstdFlags)
@@ -81,34 +63,37 @@ func init() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		decoder := json.NewDecoder(reader)
+		content, err := ioutil.ReadAll(reader)
+		if err != nil {
+			log.Fatal(err)
+		}
 		switch parts[0] {
 		case "users":
-			data := UsersFile{}
-			err = decoder.Decode(&data)
+			data := dto.UsersFile{}
+			err = data.UnmarshalJSON(content)
 			if err != nil {
 				log.Fatal(err)
 			}
 			for _, element := range data.Data {
 				cp := element
-				cp.Visits = make(map[int]*Visit)
+				cp.Visits = make(map[int]*dto.Visit)
 				cp.Age = ageTo(time.Unix(cp.BirthDate, 0), timeStampStart)
 				users.v[element.ID] = cp
 			}
 		case "locations":
-			data := LocationsFile{}
-			err = decoder.Decode(&data)
+			data := dto.LocationsFile{}
+			err = data.UnmarshalJSON(content)
 			if err != nil {
 				log.Fatal(err)
 			}
 			for _, element := range data.Data {
 				cp := element
-				cp.Visits = make(map[int]*Visit)
+				cp.Visits = make(map[int]*dto.Visit)
 				locations.v[element.ID] = cp
 			}
 		case "visits":
-			data := VisitsFile{}
-			err = decoder.Decode(&data)
+			data := dto.VisitsFile{}
+			err = data.UnmarshalJSON(content)
 			if err != nil {
 				log.Fatal(err)
 			}
@@ -153,7 +138,8 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		json.NewEncoder(w).Encode(obj)
+		bytes, _ := obj.MarshalJSON()
+		w.Write(bytes)
 	})
 	r.Get("/locations/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -166,7 +152,8 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		json.NewEncoder(w).Encode(obj)
+		bytes, _ := obj.MarshalJSON()
+		w.Write(bytes)
 	})
 	r.Get("/visits/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -179,7 +166,8 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		json.NewEncoder(w).Encode(obj)
+		bytes, _ := obj.MarshalJSON()
+		w.Write(bytes)
 	})
 
 	// POST /<entity>/<id>
@@ -189,7 +177,7 @@ func main() {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
-		blank := UserRequest{}
+		blank := dto.UserRequest{}
 		_, ok := users.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
@@ -274,7 +262,7 @@ func main() {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
-		blank := LocationRequest{}
+		blank := dto.LocationRequest{}
 		_, ok := locations.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
@@ -348,7 +336,7 @@ func main() {
 			http.Error(w, "", http.StatusNotFound) // StatusBadRequest
 			return
 		}
-		blank := VisitRequest{}
+		blank := dto.VisitRequest{}
 		_, ok := visits.v[id]
 		if !ok {
 			http.Error(w, "", http.StatusNotFound)
@@ -434,7 +422,7 @@ func main() {
 
 	// POST /<entity>/new
 	r.Post("/users/new", func(w http.ResponseWriter, r *http.Request) {
-		blank := User{}
+		blank := dto.User{}
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
@@ -452,7 +440,7 @@ func main() {
 		w.Write(successUpdate)
 	})
 	r.Post("/locations/new", func(w http.ResponseWriter, r *http.Request) {
-		blank := Location{}
+		blank := dto.Location{}
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
@@ -469,7 +457,7 @@ func main() {
 		w.Write(successUpdate)
 	})
 	r.Post("/visits/new", func(w http.ResponseWriter, r *http.Request) {
-		blank := &Visit{}
+		blank := &dto.Visit{}
 		err := json.NewDecoder(r.Body).Decode(&blank)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
@@ -556,7 +544,7 @@ func main() {
 				return
 			}
 		}
-		obj := VisitsResponse{Data: make([]VisitInUser, 0)}
+		obj := dto.VisitsResponse{Data: make([]dto.VisitInUser, 0)}
 		for _, v := range u.Visits {
 			location, ok := locations.v[v.Location]
 			if !ok {
@@ -575,7 +563,7 @@ func main() {
 			if toDate != "" && toDateInt < v.VisitedAt {
 				continue
 			}
-			obj.Data = append(obj.Data, VisitInUser{
+			obj.Data = append(obj.Data, dto.VisitInUser{
 				Mark:      v.Mark,
 				VisitedAt: v.VisitedAt,
 				Place:     location.Place,
@@ -584,11 +572,7 @@ func main() {
 		sort.Slice(obj.Data, func(i, j int) bool {
 			return obj.Data[i].VisitedAt < obj.Data[j].VisitedAt
 		})
-		bytes, err := json.Marshal(obj)
-		if err != nil {
-			http.Error(w, "", http.StatusInternalServerError)
-			return
-		}
+		bytes, _ := obj.MarshalJSON()
 		w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
 		w.Write(bytes)
 	})
@@ -670,7 +654,7 @@ func main() {
 			}
 			marks = append(marks, float64(v.Mark))
 		}
-		var total float64 = 0
+		var total float64
 		for _, value := range marks {
 			total += value
 		}
@@ -686,17 +670,13 @@ func main() {
 	}
 
 	fmt.Println("Ready")
-	go func() {
-		<-time.After(time.Second * 5)
-		warmServer()
-	}()
 	err := http.ListenAndServe(":80", r)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-func isValidUser(u User) bool {
+func isValidUser(u dto.User) bool {
 	if u.ID == 0 {
 		return false
 	}
@@ -719,7 +699,7 @@ func isValidUser(u User) bool {
 	return true
 }
 
-func isValidLocation(l Location) bool {
+func isValidLocation(l dto.Location) bool {
 	if l.ID == 0 {
 		return false
 	}
@@ -745,7 +725,7 @@ func isValidLocation(l Location) bool {
 	return true
 }
 
-func isValidVisit(v Visit) bool {
+func isValidVisit(v dto.Visit) bool {
 	if v.ID == 0 {
 		return false
 	}
@@ -788,27 +768,4 @@ func ageTo(born, to time.Time) int {
 	}
 
 	return years
-}
-
-func warmServer() {
-	end := time.Now().Add(time.Second * 10)
-	urls := []string{
-		"/users/123",
-		"/visits/123",
-		"/locations/123",
-		"/users/123/visits",
-		"/locations/123/avg",
-	}
-
-	for {
-		if time.Now().After(end) {
-			return
-		}
-		for _, url := range urls {
-			r, _ := http.Get("http://127.0.0.1:80" + url)
-			if r != nil {
-				r.Body.Close()
-			}
-		}
-	}
 }
