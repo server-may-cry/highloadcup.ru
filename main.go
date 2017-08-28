@@ -32,11 +32,9 @@ type safeVisits struct {
 	mux sync.Mutex
 }
 
-const defaultMapSize = 100000
-
-var users = safeUsers{v: make(map[int]dto.User, defaultMapSize)}
-var locations = safeLocations{v: make(map[int]dto.Location, defaultMapSize)}
-var visits = safeVisits{v: make(map[int]dto.Visit, defaultMapSize*55)}
+var users = safeUsers{v: make(map[int]dto.User, 1500000)}
+var locations = safeLocations{v: make(map[int]dto.Location, 1000000)}
+var visits = safeVisits{v: make(map[int]dto.Visit, 15000000)}
 
 var successUpdate = []byte("{}")
 
@@ -520,7 +518,7 @@ func main() {
 			}
 		}
 		obj := dto.VisitsResponse{Data: make([]dto.VisitInUser, 0)}
-		for vID, _ := range u.Visits {
+		for vID := range u.Visits {
 			v, _ := visits.v[vID]
 			location, ok := locations.v[v.Location]
 			if !ok {
@@ -607,7 +605,7 @@ func main() {
 			return
 		}
 		var marks []float64
-		for vID, _ := range l.Visits {
+		for vID := range l.Visits {
 			v, _ := visits.v[vID]
 			u, ok := users.v[v.User]
 			if !ok {
