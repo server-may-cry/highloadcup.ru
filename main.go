@@ -2,7 +2,6 @@ package main
 
 import (
 	"archive/zip"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -14,9 +13,11 @@ import (
 	"time"
 
 	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
 	"github.com/server-may-cry/highloadcup.ru/dto"
+	"github.com/server-may-cry/highloadcup.ru/helpers"
 )
+
+// "github.com/go-chi/chi/middleware"
 
 type safeUsers struct {
 	v   map[int]dto.User
@@ -27,17 +28,15 @@ type safeLocations struct {
 	mux sync.Mutex
 }
 type safeVisits struct {
-	v   map[int]*dto.Visit
+	v   map[int]dto.Visit
 	mux sync.Mutex
 }
-
-const debug = false
 
 const defaultMapSize = 100000
 
 var users = safeUsers{v: make(map[int]dto.User, defaultMapSize)}
 var locations = safeLocations{v: make(map[int]dto.Location, defaultMapSize)}
-var visits = safeVisits{v: make(map[int]*dto.Visit, defaultMapSize)}
+var visits = safeVisits{v: make(map[int]dto.Visit, defaultMapSize*55)}
 
 var successUpdate = []byte("{}")
 
@@ -76,8 +75,7 @@ func init() {
 			}
 			for _, element := range data.Data {
 				cp := element
-				cp.Visits = make(map[int]*dto.Visit)
-				cp.Age = ageTo(time.Unix(cp.BirthDate, 0), timeStampStart)
+				cp.Visits = make(map[int]struct{})
 				users.v[element.ID] = cp
 			}
 		case "locations":
@@ -88,7 +86,7 @@ func init() {
 			}
 			for _, element := range data.Data {
 				cp := element
-				cp.Visits = make(map[int]*dto.Visit)
+				cp.Visits = make(map[int]struct{})
 				locations.v[element.ID] = cp
 			}
 		case "visits":
@@ -99,7 +97,7 @@ func init() {
 			}
 			for _, element := range data.Data {
 				cp := element
-				visits.v[element.ID] = &cp
+				visits.v[element.ID] = cp
 			}
 		}
 		rc.Close()
@@ -111,14 +109,14 @@ func init() {
 		if !ok {
 			log.Fatal("not found user for visit")
 		}
-		u.Visits[cpv.ID] = cpv
+		u.Visits[cpv.ID] = struct{}{}
 		users.v[u.ID] = u
 
 		l, ok := locations.v[visit.Location]
 		if !ok {
 			log.Fatal("not found location for visit")
 		}
-		l.Visits[cpv.ID] = cpv
+		l.Visits[cpv.ID] = struct{}{}
 		locations.v[l.ID] = l
 	}
 }
@@ -138,8 +136,8 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		bytes, _ := obj.MarshalJSON()
-		w.Write(bytes)
+		array_bytes, _ := obj.MarshalJSON()
+		w.Write(array_bytes)
 	})
 	r.Get("/locations/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -152,8 +150,8 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		bytes, _ := obj.MarshalJSON()
-		w.Write(bytes)
+		array_bytes, _ := obj.MarshalJSON()
+		w.Write(array_bytes)
 	})
 	r.Get("/visits/{id}", func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(chi.URLParam(r, "id"))
@@ -166,8 +164,8 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		bytes, _ := obj.MarshalJSON()
-		w.Write(bytes)
+		array_bytes, _ := obj.MarshalJSON()
+		w.Write(array_bytes)
 	})
 
 	// POST /<entity>/<id>
@@ -183,50 +181,28 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		err = json.NewDecoder(r.Body).Decode(&blank)
+		array_bytes, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		switch "null" {
-		case string(blank.BirthDate):
-			fallthrough
-		case string(blank.FirstName):
-			fallthrough
-		case string(blank.LastName):
-			fallthrough
-		case string(blank.Email):
-			fallthrough
-		case string(blank.Gender):
+		json_string := string(array_bytes)
+		if strings.Contains(json_string, "null") {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 
-		gender, err := jsonRawToString(blank.Gender)
+		err = blank.UnmarshalJSON(array_bytes)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		birthDate, err := jsonRawToInt(blank.BirthDate)
-		if err != nil {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-		}
-		email, err := jsonRawToString(blank.Email)
-		if err != nil {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-		}
-		firstName, err := jsonRawToString(blank.FirstName)
-		if err != nil {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-		}
-		lastName, err := jsonRawToString(blank.LastName)
-		if err != nil {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-		}
+
+		gender := blank.Gender
+		birthDate := blank.BirthDate
+		email := blank.Email
+		firstName := blank.FirstName
+		lastName := blank.LastName
 
 		users.mux.Lock()
 		obj, _ := users.v[id]
@@ -235,7 +211,6 @@ func main() {
 		}
 		if birthDate != 0 || string(blank.BirthDate) == "0" {
 			obj.BirthDate = int64(birthDate)
-			obj.Age = ageTo(time.Unix(obj.BirthDate, 0), timeStampStart)
 		}
 		if email != "" {
 			obj.Email = email
@@ -268,43 +243,27 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		err = json.NewDecoder(r.Body).Decode(&blank)
+		array_bytes, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		switch "null" {
-		case string(blank.Place):
-			fallthrough
-		case string(blank.Country):
-			fallthrough
-		case string(blank.City):
-			fallthrough
-		case string(blank.Distance):
+		json_string := string(array_bytes)
+		if strings.Contains(json_string, "null") {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 
-		place, err := jsonRawToString(blank.Place)
+		err = blank.UnmarshalJSON(array_bytes)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		country, err := jsonRawToString(blank.Country)
-		if err != nil {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-		}
-		city, err := jsonRawToString(blank.City)
-		if err != nil {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-		}
-		distance, err := jsonRawToInt(blank.Distance)
-		if err != nil {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-		}
+
+		place := blank.Place
+		country := blank.Country
+		city := blank.City
+		distance := blank.Distance
 
 		locations.mux.Lock()
 		obj, _ := locations.v[id]
@@ -342,43 +301,27 @@ func main() {
 			http.Error(w, "", http.StatusNotFound)
 			return
 		}
-		err = json.NewDecoder(r.Body).Decode(&blank)
+		array_bytes, err := ioutil.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		switch "null" {
-		case string(blank.Location):
-			fallthrough
-		case string(blank.Mark):
-			fallthrough
-		case string(blank.VisitedAt):
-			fallthrough
-		case string(blank.User):
+		json_string := string(array_bytes)
+		if strings.Contains(json_string, "null") {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 
-		location, err := jsonRawToInt(blank.Location)
+		err = blank.UnmarshalJSON(array_bytes)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		user, err := jsonRawToInt(blank.User)
-		if err != nil {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-		}
-		mark, err := jsonRawToInt(blank.Mark)
-		if err != nil {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-		}
-		visitedAt, err := jsonRawToInt(blank.VisitedAt)
-		if err != nil {
-			http.Error(w, "", http.StatusBadRequest)
-			return
-		}
+
+		location := blank.Location
+		user := blank.User
+		mark := blank.Mark
+		visitedAt := blank.VisitedAt
 
 		visits.mux.Lock()
 		obj, _ := visits.v[id]
@@ -390,7 +333,7 @@ func main() {
 				locations.v[obj.Location] = l
 
 				nl, _ := locations.v[location]
-				nl.Visits[obj.ID] = obj
+				nl.Visits[obj.ID] = struct{}{}
 				locations.mux.Unlock()
 			}
 			obj.Location = location
@@ -403,7 +346,7 @@ func main() {
 				users.v[obj.User] = u
 
 				nu, _ := users.v[user]
-				nu.Visits[obj.ID] = obj
+				nu.Visits[obj.ID] = struct{}{}
 				users.mux.Unlock()
 			}
 			obj.User = user
@@ -415,7 +358,7 @@ func main() {
 			obj.VisitedAt = visitedAt
 		}
 
-		//visits.v[id] = obj
+		visits.v[id] = obj
 		visits.mux.Unlock()
 		w.Write(successUpdate)
 	})
@@ -423,7 +366,18 @@ func main() {
 	// POST /<entity>/new
 	r.Post("/users/new", func(w http.ResponseWriter, r *http.Request) {
 		blank := dto.User{}
-		err := json.NewDecoder(r.Body).Decode(&blank)
+		array_bytes, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "", http.StatusBadRequest)
+			return
+		}
+		json_string := string(array_bytes)
+		if strings.Contains(json_string, "null") {
+			http.Error(w, "", http.StatusBadRequest)
+			return
+		}
+
+		err = blank.UnmarshalJSON(array_bytes)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
@@ -433,7 +387,6 @@ func main() {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
-		blank.Age = ageTo(time.Unix(blank.BirthDate, 0), timeStampStart)
 		users.mux.Lock()
 		users.v[blank.ID] = blank
 		users.mux.Unlock()
@@ -441,7 +394,18 @@ func main() {
 	})
 	r.Post("/locations/new", func(w http.ResponseWriter, r *http.Request) {
 		blank := dto.Location{}
-		err := json.NewDecoder(r.Body).Decode(&blank)
+		array_bytes, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "", http.StatusBadRequest)
+			return
+		}
+		json_string := string(array_bytes)
+		if strings.Contains(json_string, "null") {
+			http.Error(w, "", http.StatusBadRequest)
+			return
+		}
+
+		err = blank.UnmarshalJSON(array_bytes)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
@@ -457,14 +421,25 @@ func main() {
 		w.Write(successUpdate)
 	})
 	r.Post("/visits/new", func(w http.ResponseWriter, r *http.Request) {
-		blank := &dto.Visit{}
-		err := json.NewDecoder(r.Body).Decode(&blank)
+		blank := dto.Visit{}
+		array_bytes, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "", http.StatusBadRequest)
+			return
+		}
+		json_string := string(array_bytes)
+		if strings.Contains(json_string, "null") {
+			http.Error(w, "", http.StatusBadRequest)
+			return
+		}
+
+		err = blank.UnmarshalJSON(array_bytes)
 		if err != nil {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
 
-		if !isValidVisit(*blank) {
+		if !isValidVisit(blank) {
 			http.Error(w, "", http.StatusBadRequest)
 			return
 		}
@@ -479,7 +454,7 @@ func main() {
 			users.mux.Unlock()
 			return
 		}
-		u.Visits[blank.ID] = blank
+		u.Visits[blank.ID] = struct{}{}
 		users.v[blank.User] = u
 		users.mux.Unlock()
 
@@ -490,7 +465,7 @@ func main() {
 			locations.mux.Unlock()
 			return
 		}
-		l.Visits[blank.ID] = blank
+		l.Visits[blank.ID] = struct{}{}
 		locations.v[blank.Location] = l
 		locations.mux.Unlock()
 		w.Write(successUpdate)
@@ -545,7 +520,8 @@ func main() {
 			}
 		}
 		obj := dto.VisitsResponse{Data: make([]dto.VisitInUser, 0)}
-		for _, v := range u.Visits {
+		for vID, _ := range u.Visits {
+			v, _ := visits.v[vID]
 			location, ok := locations.v[v.Location]
 			if !ok {
 				http.Error(w, "", http.StatusBadRequest)
@@ -572,9 +548,9 @@ func main() {
 		sort.Slice(obj.Data, func(i, j int) bool {
 			return obj.Data[i].VisitedAt < obj.Data[j].VisitedAt
 		})
-		bytes, _ := obj.MarshalJSON()
-		w.Header().Set("Content-Length", strconv.Itoa(len(bytes)))
-		w.Write(bytes)
+		array_bytes, _ := obj.MarshalJSON()
+		w.Header().Set("Content-Length", strconv.Itoa(len(array_bytes)))
+		w.Write(array_bytes)
 	})
 
 	// GET /locations/<id>/avg
@@ -631,7 +607,8 @@ func main() {
 			return
 		}
 		var marks []float64
-		for _, v := range l.Visits {
+		for vID, _ := range l.Visits {
+			v, _ := visits.v[vID]
 			u, ok := users.v[v.User]
 			if !ok {
 				http.Error(w, "", http.StatusBadRequest)
@@ -643,10 +620,11 @@ func main() {
 			if toDate != "" && v.VisitedAt > toDateInt {
 				continue
 			}
-			if fromAge != "" && fromAgeInt > u.Age {
+			age := helpers.AgePass(time.Unix(u.BirthDate, 0), timeStampStart)
+			if fromAge != "" && fromAgeInt > age {
 				continue
 			}
-			if toAge != "" && toAgeInt <= u.Age {
+			if toAge != "" && toAgeInt <= age {
 				continue
 			}
 			if gender != "" && u.Gender != gender {
@@ -665,9 +643,7 @@ func main() {
 		w.Write([]byte(response))
 	})
 
-	if debug {
-		r.Mount("/debug", middleware.Profiler())
-	}
+	// r.Mount("/debug", middleware.Profiler())
 
 	fmt.Println("Ready")
 	err := http.ListenAndServe(":80", r)
@@ -740,32 +716,4 @@ func isValidVisit(v dto.Visit) bool {
 	}
 
 	return true
-}
-
-func jsonRawToString(r json.RawMessage) (string, error) {
-	if len(r) == 0 {
-		return "", nil
-	}
-	var result string
-	err := json.Unmarshal(r, &result)
-	return result, err
-}
-func jsonRawToInt(r json.RawMessage) (int, error) {
-	if len(r) == 0 {
-		return 0, nil
-	}
-	var result int
-	err := json.Unmarshal(r, &result)
-	return result, err
-}
-
-func ageTo(born, to time.Time) int {
-	years := to.Year() - born.Year()
-	if born.Month() > to.Month() {
-		years--
-	} else if born.Month() == to.Month() && born.Day() < to.Day() {
-		years--
-	}
-
-	return years
 }
