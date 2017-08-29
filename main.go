@@ -19,25 +19,26 @@ import (
 
 // "github.com/go-chi/chi/middleware"
 
-type safeUsers struct {
+var users = struct {
 	v   map[int]dto.User
 	mux sync.Mutex
+}{
+	v: make(map[int]dto.User, 1500000),
 }
-type safeLocations struct {
+var locations = struct {
 	v   map[int]dto.Location
 	mux sync.Mutex
+}{
+	v: make(map[int]dto.Location, 1000000),
 }
-type safeVisits struct {
+var visits = struct {
 	v   map[int]dto.Visit
 	mux sync.Mutex
+}{
+	v: make(map[int]dto.Visit, 15000000),
 }
 
-var users = safeUsers{v: make(map[int]dto.User, 1500000)}
-var locations = safeLocations{v: make(map[int]dto.Location, 1000000)}
-var visits = safeVisits{v: make(map[int]dto.Visit, 15000000)}
-
 var successUpdate = []byte("{}")
-
 var timeStampStart time.Time
 
 func init() {
@@ -51,16 +52,13 @@ func init() {
 	defer r.Close()
 
 	for _, f := range r.File {
-		rc, err := f.Open()
-		if err != nil {
-			log.Fatal(err)
-		}
 		parts := strings.Split(f.Name, "_")
 		reader, err := f.Open()
 		if err != nil {
 			log.Fatal(err)
 		}
 		content, err := ioutil.ReadAll(reader)
+		reader.Close()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -98,7 +96,6 @@ func init() {
 				visits.v[element.ID] = cp
 			}
 		}
-		rc.Close()
 	}
 
 	for _, visit := range visits.v {
