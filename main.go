@@ -55,19 +55,22 @@ func init() {
 		parts := strings.Split(f.Name, "_")
 		reader, err := f.Open()
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
+			continue
 		}
 		content, err := ioutil.ReadAll(reader)
 		reader.Close()
 		if err != nil {
-			log.Fatal(err)
+			log.Println(err)
+			continue
 		}
 		switch parts[0] {
 		case "users":
 			data := dto.UsersFile{}
 			err = data.UnmarshalJSON(content)
 			if err != nil {
-				log.Fatal(err)
+				log.Println(err)
+				continue
 			}
 			for _, element := range data.Data {
 				cp := element
@@ -78,7 +81,8 @@ func init() {
 			data := dto.LocationsFile{}
 			err = data.UnmarshalJSON(content)
 			if err != nil {
-				log.Fatal(err)
+				log.Println(err)
+				continue
 			}
 			for _, element := range data.Data {
 				cp := element
@@ -89,7 +93,8 @@ func init() {
 			data := dto.VisitsFile{}
 			err = data.UnmarshalJSON(content)
 			if err != nil {
-				log.Fatal(err)
+				log.Println(err)
+				continue
 			}
 			for _, element := range data.Data {
 				cp := element
@@ -102,14 +107,16 @@ func init() {
 		cpv := visit
 		u, ok := users.v[visit.User]
 		if !ok {
-			log.Fatal("not found user for visit")
+			log.Printf("not found user:%d for visit:%d\n", visit.User, visit.ID)
+			continue
 		}
 		u.Visits[cpv.ID] = struct{}{}
 		users.v[u.ID] = u
 
 		l, ok := locations.v[visit.Location]
 		if !ok {
-			log.Fatal("not found location for visit")
+			log.Printf("not found location:%d for visit:%d\n", visit.Location, visit.ID)
+			continue
 		}
 		l.Visits[cpv.ID] = struct{}{}
 		locations.v[l.ID] = l
