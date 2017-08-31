@@ -23,19 +23,19 @@ var users = struct {
 	v   map[int]dto.User
 	mux sync.Mutex
 }{
-	v: make(map[int]dto.User, 1500000),
+	v: make(map[int]dto.User),
 }
 var locations = struct {
 	v   map[int]dto.Location
 	mux sync.Mutex
 }{
-	v: make(map[int]dto.Location, 1000000),
+	v: make(map[int]dto.Location),
 }
 var visits = struct {
 	v   map[int]dto.Visit
 	mux sync.Mutex
 }{
-	v: make(map[int]dto.Visit, 15000000),
+	v: make(map[int]dto.Visit),
 }
 
 var successUpdate = []byte("{}")
